@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+/*
+ * Paleta y tokens de diseño de TerraValle (Tailwind CSS v4).
+ * Cada variable --color-* genera utilidades automáticamente:
+ *   --color-primary-600  →  bg-primary-600, text-primary-600, border-primary-600...
+ * Para cambiar la paleta del proyecto basta con editar estos valores.
+ */
+@theme {
+  /* Verde bosque: color principal (botones, enlaces activos, encabezados) */
+  --color-primary-50: #f2f7f3;
+  --color-primary-100: #e0ece2;
+  --color-primary-200: #c2d9c7;
+  --color-primary-300: #97bea1;
+  --color-primary-400: #679c76;
+  --color-primary-500: #467f57;
+  --color-primary-600: #346544;
+  --color-primary-700: #2a5138;
+  --color-primary-800: #24412f;
+  --color-primary-900: #1e3628;
+
+  /* Tierra / terracota: color secundario (acentos, insignias, detalles) */
+  --color-earth-50: #faf6f1;
+  --color-earth-100: #f2e9dc;
+  --color-earth-200: #e4d0b8;
+  --color-earth-300: #d3b18d;
+  --color-earth-400: #c18e63;
+  --color-earth-500: #b57549;
+  --color-earth-600: #a7623e;
+  --color-earth-700: #8b4d35;
+  --color-earth-800: #714030;
+  --color-earth-900: #5c3629;
+
+  /* Superficies y texto (neutros cálidos) */
+  --color-surface: #faf9f6;
+  --color-surface-muted: #f3f1ec;
+  --color-ink: #292524;
+  --color-ink-muted: #57534e;
+
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-surface text-ink min-h-dvh font-sans antialiased;
+  }
+
+  /* Contorno de foco visible y consistente para navegación con teclado */
+  :focus-visible {
+    @apply outline-primary-500 outline-2 outline-offset-2;
+  }
+}
