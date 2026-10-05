@@ -10,8 +10,8 @@ export default function HomePage() {
         title="Bienvenido a TerraValle"
         description="Publica tus inmuebles con fichas técnicas estandarizadas y obtén una estimación orientativa de su valor."
       />
-      <EmptyState
-        title="Aquí irá la página de inicio"
+         <EmptyState
+        title="Despliegue automático con Azure funcionando correctamente"
         description="Presentación de la plataforma, buscador rápido y propiedades destacadas."
         action={<Button to={ROUTES.CATALOG}>Ver catálogo</Button>}
       />
