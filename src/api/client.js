@@ -73,8 +73,12 @@ client.interceptors.response.use(
       message = ERROR_MESSAGES[status] ?? ERROR_MESSAGES.default;
     }
 
-    if (status === 401 && onUnauthorized) {
+    if (status === 401 && getStoredToken() && onUnauthorized) {
       onUnauthorized();
+    }
+
+    if (status === 401 && error.response?.data?.message) {
+      message = error.response.data.message;
     }
 
     const friendlyError = new Error(message);
