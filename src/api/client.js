@@ -13,6 +13,9 @@ import { API_URL, STORAGE_KEYS } from '@/utils/constants';
  *   - error.message → texto en español listo para mostrar al usuario
  *   - error.status  → código HTTP (o null si no hubo respuesta)
  *   - error.details → cuerpo de la respuesta del backend (para depurar / validaciones)
+ *
+ * Opción por petición `skipAuth: true`: no adjunta el token y un 401 NO cierra la sesión
+ * (se usa en el login, donde un 401 significa "credenciales incorrectas").
  */
 const client = axios.create({
   baseURL: API_URL,
@@ -22,9 +25,10 @@ const client = axios.create({
 
 /* ------------------------------------------------------------------ */
 /* Petición: adjunta el token JWT si hay sesión guardada               */
+/* (las peticiones con `skipAuth: true`, como el login, no lo llevan)  */
 /* ------------------------------------------------------------------ */
 client.interceptors.request.use((config) => {
-  const token = getStoredToken();
+  const token = config.skipAuth ? null : getStoredToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -73,7 +77,8 @@ client.interceptors.response.use(
       message = ERROR_MESSAGES[status] ?? ERROR_MESSAGES.default;
     }
 
-    if (status === 401 && onUnauthorized) {
+    // Un 401 en una petición pública (ej. login con credenciales incorrectas) no es una sesión vencida.
+    if (status === 401 && onUnauthorized && !error.config?.skipAuth) {
       onUnauthorized();
     }
 

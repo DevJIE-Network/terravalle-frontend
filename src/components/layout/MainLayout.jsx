@@ -1,5 +1,4 @@
 import { Outlet } from 'react-router-dom';
-import DevAuthToggle from '@/components/dev/DevAuthToggle';
 import Footer from './Footer';
 import Header from './Header';
 
@@ -16,8 +15,6 @@ export default function MainLayout() {
         <Outlet />
       </main>
       <Footer />
-      {/* Solo aparece con `npm run dev`; no se incluye en el build de producción. */}
-      {import.meta.env.DEV && <DevAuthToggle />}
     </div>
   );
 }
