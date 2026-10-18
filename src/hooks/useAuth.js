@@ -8,8 +8,11 @@ import { AuthContext } from '@/context/AuthContext';
  *   user: { id: number, name: string, email: string } | null,
  *   token: string | null,
  *   isAuthenticated: boolean,
+ *   sessionExpired: boolean,
  *   login: (credentials: { email: string, password: string }) => Promise<object>,
  *   logout: () => void,
+ *   expireSession: () => void,
+ *   clearSessionNotice: () => void,
  * }}
  */
 export function useAuth() {

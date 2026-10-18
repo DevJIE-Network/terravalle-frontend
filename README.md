@@ -78,13 +78,12 @@ Abre <http://localhost:5173>.
 src/
 ├── api/                    # Comunicación con el backend
 │   ├── client.js           # Instancia de Axios (token JWT + mensajes de error en español)
-│   ├── auth.service.js     # Servicio de ejemplo: register(), login()
+│   ├── auth.service.js     # Servicio de autenticación: register(), login()
 │   └── index.js
 ├── components/
 │   ├── layout/             # Header, Navbar, Footer, MainLayout (estructura de todas las páginas)
-│   ├── ui/                 # Componentes reutilizables: Button, Input, Alert, Card, Loader,
-│   │                       #   EmptyState, ErrorState, PageHeader
-│   └── dev/                # Herramientas solo para desarrollo (botón visitante/autenticado)
+│   └── ui/                 # Componentes reutilizables: Button, Input, Alert, Card, Loader,
+│                           #   EmptyState, ErrorState, PageHeader
 ├── context/                # AuthContext + AuthProvider (sesión global)
 ├── hooks/                  # Hooks personalizados (useAuth)
 ├── pages/                  # Una carpeta por pantalla (HomePage, CatalogPage, LoginPage...)
@@ -101,7 +100,7 @@ src/
 | ------------------ | --------------- | ------------------ | ------------------------ |
 | `/`                | Pública         | `HomePage`         | Por asignar              |
 | `/catalogo`        | Pública         | `CatalogPage`      | HU-026, HU-027, HU-028   |
-| `/login`           | Solo visitantes | `LoginPage`        | HU-018                   |
+| `/login`           | Solo visitantes | `LoginPage`        | HU-018 ✔                 |
 | `/registro`        | Solo visitantes | `RegisterPage`     | HU-017                   |
 | `/mis-propiedades` | Protegida       | `MyPropertiesPage` | HU-024 (y HU-020 a 025)  |
 | `/favoritos`       | Protegida       | `FavoritesPage`    | HU-030                   |
@@ -222,9 +221,12 @@ import { Alert, Button, Card, EmptyState, ErrorState, Input, Loader, PageHeader 
 const { user, token, isAuthenticated, login, logout } = useAuth();
 ```
 
-⚠ **El login es simulado** mientras el backend termina `POST /auth/login`. Credenciales de prueba: `demo@terravalle.mx` / `demo1234`. La sesión se guarda en `localStorage`. Los puntos a conectar con la API están marcados con `// TODO: conectar con POST /auth/login` en `src/context/AuthProvider.jsx`.
+El login consume `POST /auth/login` (HU-002), que debe responder `{ user, token }`. La sesión se guarda en `localStorage` y el cliente HTTP envía el token como `Authorization: Bearer <token>` (nunca va en la URL).
 
-**Botón DEV:** con `npm run dev` aparece abajo a la derecha un botón para alternar entre visitante y usuario autenticado y probar el menú y las rutas protegidas. No se incluye en el build de producción.
+- **Credenciales incorrectas:** se muestra siempre el mismo mensaje genérico, sin indicar si el correo existe.
+- **Rutas privadas** (`/mis-propiedades`, `/favoritos`, `/perfil`): `ProtectedRoute` valida la sesión antes de mostrarlas y, si no hay sesión, redirige a `/login`. Tras iniciar sesión se regresa a la página que se intentaba abrir.
+- **Sesión expirada:** si el token venció o el backend responde `401`, se borra la sesión local, se redirige a `/login` y se muestra el aviso "Tu sesión expiró".
+- **Cerrar sesión:** borra los datos guardados en el dispositivo y actualiza el menú.
 
 ## Flujo de ramas
 
