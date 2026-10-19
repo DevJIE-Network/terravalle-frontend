@@ -1,8 +1,13 @@
 /** Nombre visible de la aplicación. */
 export const APP_NAME = 'TerraValle';
 
-/** URL base de la API (definida en .env → VITE_API_URL). */
-export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+/**
+ * URL base de la API. Sale SOLO de la configuración del ambiente (VITE_API_URL):
+ *   - npm run dev   → .env.development
+ *   - npm run build → .env.production
+ * Un archivo .env.local (no se sube a GitHub) puede sobrescribirla en tu computadora.
+ */
+export const API_URL = import.meta.env.VITE_API_URL;
 
 /**
  * Rutas de la aplicación. Úsalas siempre en lugar de escribir el texto a mano:
