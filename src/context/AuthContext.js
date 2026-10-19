@@ -5,6 +5,6 @@ import { createContext } from 'react';
  * usa el hook useAuth() de '@/hooks'.
  *
  * Valor expuesto: { user, token, isAuthenticated, sessionExpired, login, logout,
- * expireSession, clearSessionNotice }
+ * updateUser, expireSession, clearSessionNotice }
  */
 export const AuthContext = createContext(null);
