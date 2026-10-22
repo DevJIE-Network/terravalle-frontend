@@ -11,6 +11,7 @@ import { AuthContext } from '@/context/AuthContext';
  *   sessionExpired: boolean,
  *   login: (credentials: { email: string, password: string }) => Promise<object>,
  *   logout: () => void,
+ *   updateUser: (changes: object) => void,
  *   expireSession: () => void,
  *   clearSessionNotice: () => void,
  * }}

@@ -6,7 +6,7 @@ import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'coverage']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -25,6 +25,11 @@ export default defineConfig([
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
+  },
+  {
+    // Pruebas: los archivos de apoyo exportan funciones además de componentes.
+    files: ['tests/**/*.{js,jsx}'],
+    rules: { 'react-refresh/only-export-components': 'off' },
   },
   {
     // Archivos de configuración que se ejecutan en Node.
