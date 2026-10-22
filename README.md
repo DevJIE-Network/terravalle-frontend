@@ -67,6 +67,8 @@ Abre <http://localhost:5173>.
 | `npm run build`        | Genera la versión de producción en `dist/`         |
 | `npm run preview`      | Sirve localmente el build de `dist/` para probarlo |
 | `npm run lint`         | Revisa el código con ESLint                        |
+| `npm test`             | Ejecuta las pruebas automatizadas (Vitest)         |
+| `npm run test:coverage`| Pruebas con reporte de cobertura en `coverage/`    |
 | `npm run format`       | Formatea todo el código con Prettier               |
 | `npm run format:check` | Verifica el formato sin modificar archivos         |
 
@@ -282,15 +284,16 @@ docs(SCRUM-30): actualizar README
 
 El análisis estático se ejecuta automáticamente con **SonarQube Cloud** (plan gratuito para repositorios públicos) mediante GitHub Actions.
 
-- **Workflow:** `.github/workflows/sonarcloud.yml`. Corre en cada push a `main`, `developer`, `release` y ramas `sprint*`, y en cada Pull Request. Primero ejecuta `npm run lint` (ESLint) y después envía el código a SonarQube Cloud.
-- **Configuración:** `sonar-project.properties` (organización, clave del proyecto y carpeta `src`).
+- **Workflow:** `.github/workflows/sonarcloud.yml`. Corre en cada push a `main`, `developer`, `release` y ramas `sprint*`, y en cada Pull Request. Ejecuta `npm run lint` (ESLint), luego `npm run test:coverage` (Vitest) y después envía el código y la cobertura a SonarQube Cloud.
+- **Configuración:** `sonar-project.properties` (organización, clave del proyecto, código en `src`, pruebas en `tests` y cobertura en `coverage/lcov.info`).
+- **Pruebas:** `tests/` con Vitest y Testing Library (validaciones, servicio de usuario, perfil HU-019, cierre de sesión y arranque de la app).
 - **Métricas:** bugs, vulnerabilidades, security hotspots, code smells, duplicación y deuda técnica, además de la *Quality Gate* del código nuevo.
 
 Configuración inicial (una sola vez):
 
 1. Entrar a [sonarcloud.io](https://sonarcloud.io) con GitHub e importar la organización `DevJIE-Network`.
 2. Crear el proyecto `terravalle-frontend` (plan Free) y en **Administration → Analysis Method** desactivar *Automatic Analysis*.
-3. Generar un token en **My Account → Security** y guardarlo en GitHub como secreto `SONAR_TOKEN` (**Settings → Secrets and variables → Actions**).
+3. Generar un token en **My Account → Access tokens** y guardarlo en GitHub como secreto `SONAR_TOKEN` (**Settings → Secrets and variables → Actions**).
 
 ## Metodología
 

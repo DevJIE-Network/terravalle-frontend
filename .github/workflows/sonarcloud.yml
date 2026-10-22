@@ -15,7 +15,7 @@ on:
 
 jobs:
   sonarqube:
-    name: Lint y análisis
+    name: Lint, pruebas y análisis
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,6 +38,9 @@ jobs:
 
       - name: Lint (ESLint)
         run: npm run lint
+
+      - name: Pruebas con cobertura (Vitest)
+        run: npm run test:coverage
 
       - name: Análisis de SonarQube Cloud
         uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
