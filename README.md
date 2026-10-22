@@ -278,6 +278,20 @@ fix(SCRUM-32): redirección tras iniciar sesión
 docs(SCRUM-30): actualizar README
 ```
 
+## Calidad de código (SonarQube Cloud)
+
+El análisis estático se ejecuta automáticamente con **SonarQube Cloud** (plan gratuito para repositorios públicos) mediante GitHub Actions.
+
+- **Workflow:** `.github/workflows/sonarcloud.yml`. Corre en cada push a `main`, `developer`, `release` y ramas `sprint*`, y en cada Pull Request. Primero ejecuta `npm run lint` (ESLint) y después envía el código a SonarQube Cloud.
+- **Configuración:** `sonar-project.properties` (organización, clave del proyecto y carpeta `src`).
+- **Métricas:** bugs, vulnerabilidades, security hotspots, code smells, duplicación y deuda técnica, además de la *Quality Gate* del código nuevo.
+
+Configuración inicial (una sola vez):
+
+1. Entrar a [sonarcloud.io](https://sonarcloud.io) con GitHub e importar la organización `DevJIE-Network`.
+2. Crear el proyecto `terravalle-frontend` (plan Free) y en **Administration → Analysis Method** desactivar *Automatic Analysis*.
+3. Generar un token en **My Account → Security** y guardarlo en GitHub como secreto `SONAR_TOKEN` (**Settings → Secrets and variables → Actions**).
+
 ## Metodología
 
 El proyecto se gestiona con **Scrum** en Jira, organizado en sprints semanales.

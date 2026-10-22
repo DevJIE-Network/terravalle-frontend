@@ -3,8 +3,8 @@ import { userService } from '@/api';
 import { Alert, Button, Card, ErrorState, Input, Loader, PageHeader } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { UNSAVED_CHANGES_MESSAGE, useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { isValidEmail } from '@/utils/helpers';
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?[0-9][0-9\s-]*[0-9]$/;
 
 /** Campos editables del perfil (deben coincidir con los que acepta PATCH /users/me). */
@@ -78,7 +78,7 @@ function validate(form) {
 
   if (!email) {
     errors.email = 'El correo electrónico es obligatorio.';
-  } else if (!EMAIL_PATTERN.test(email)) {
+  } else if (!isValidEmail(email)) {
     errors.email = 'Ingresa un correo electrónico válido.';
   }
 
@@ -91,7 +91,7 @@ function validate(form) {
     }
   }
 
-  if (contactEmail && !EMAIL_PATTERN.test(contactEmail)) {
+  if (contactEmail && !isValidEmail(contactEmail)) {
     errors.contactEmail = 'Ingresa un correo de contacto válido.';
   }
 

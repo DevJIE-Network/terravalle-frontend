@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { register as registerUser } from '@/api/auth.service';
 import { Alert, Button, Input, PageHeader } from '@/components/ui';
 import { ROUTES } from '@/utils/constants';
+import { isValidEmail } from '@/utils/helpers';
 
 const INITIAL_FORM = {
   name: '',
@@ -56,7 +57,7 @@ export default function RegisterPage() {
     // Correo
     if (!email) {
       newErrors.email = 'El correo electrónico es obligatorio.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    } else if (!isValidEmail(email)) {
       newErrors.email = 'Ingresa un correo electrónico válido.';
     }
 

@@ -3,10 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert, Button, Input, PageHeader } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { ROUTES } from '@/utils/constants';
-import { resolveRedirectPath } from '@/utils/helpers';
+import { isValidEmail, resolveRedirectPath } from '@/utils/helpers';
 
 const INITIAL_FORM = { email: '', password: '' };
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -41,7 +40,7 @@ export default function LoginPage() {
 
     if (!email) {
       newErrors.email = 'El correo electrónico es obligatorio.';
-    } else if (!EMAIL_PATTERN.test(email)) {
+    } else if (!isValidEmail(email)) {
       newErrors.email = 'Ingresa un correo electrónico válido.';
     }
 
