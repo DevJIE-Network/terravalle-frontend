@@ -6,3 +6,4 @@ export { default as MyPropertiesPage } from './MyProperties/MyPropertiesPage';
 export { default as NotFoundPage } from './NotFound/NotFoundPage';
 export { default as ProfilePage } from './Profile/ProfilePage';
 export { default as RegisterPage } from './Register/RegisterPage';
+export { default as CreatePropertyPage } from './CreateProperty/CreatePropertyPage';
