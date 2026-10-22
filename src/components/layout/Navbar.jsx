@@ -48,7 +48,7 @@ export default function Navbar() {
     if (!confirmDiscardChanges()) return;
     closeMenu();
     logout();
-    navigate(ROUTES.HOME);
+    void navigate(ROUTES.HOME);
   };
 
   // Cerrar el menú móvil con la tecla Escape.

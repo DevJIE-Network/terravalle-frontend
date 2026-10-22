@@ -111,7 +111,7 @@ export default function RegisterPage() {
         password: form.password,
       });
 
-      navigate(ROUTES.LOGIN, {
+      void navigate(ROUTES.LOGIN, {
         replace: true,
         state: {
           message:

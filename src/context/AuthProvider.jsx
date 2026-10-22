@@ -102,7 +102,7 @@ export function AuthProvider({ children }) {
     if (!sessionRef.current) return;
     clearStoredSession();
     setState({ session: null, sessionExpired: true });
-    navigate(ROUTES.LOGIN, { replace: true, state: { from: locationRef.current } });
+    void navigate(ROUTES.LOGIN, { replace: true, state: { from: locationRef.current } });
   }, [navigate]);
 
   /** Oculta el aviso de "sesión expirada" una vez mostrado. */

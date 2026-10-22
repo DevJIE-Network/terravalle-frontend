@@ -68,7 +68,7 @@ export default function LoginPage() {
       await login({ email: form.email.trim().toLowerCase(), password: form.password });
 
       // Vuelve a la pantalla privada que se intentó abrir, o al inicio.
-      navigate(resolveRedirectPath(location.state?.from), { replace: true });
+      void navigate(resolveRedirectPath(location.state?.from), { replace: true });
     } catch (error) {
       // Mensaje genérico: no se indica cuál dato falló ni si el correo existe.
       setGeneralError(error.message || 'No fue posible iniciar sesión. Intenta nuevamente.');
