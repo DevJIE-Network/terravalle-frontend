@@ -74,6 +74,20 @@ export function AuthProvider({ children }) {
     return user;
   }, []);
 
+  /**
+   * Actualiza los datos del usuario en la sesión (por ejemplo, después de editar el perfil)
+   * para que el resto de la app muestre la información vigente.
+   * @param {object} changes campos del usuario que cambiaron
+   */
+  const updateUser = useCallback((changes) => {
+    setState((previous) => {
+      if (!previous.session) return previous;
+      const session = { ...previous.session, user: { ...previous.session.user, ...changes } };
+      persistSession(session);
+      return { ...previous, session };
+    });
+  }, []);
+
   /** Cierra la sesión y borra los datos guardados en el dispositivo. */
   const logout = useCallback(() => {
     clearStoredSession();
@@ -88,12 +102,14 @@ export function AuthProvider({ children }) {
     if (!sessionRef.current) return;
     clearStoredSession();
     setState({ session: null, sessionExpired: true });
-    navigate(ROUTES.LOGIN, { replace: true, state: { from: locationRef.current } });
+    void navigate(ROUTES.LOGIN, { replace: true, state: { from: locationRef.current } });
   }, [navigate]);
 
   /** Oculta el aviso de "sesión expirada" una vez mostrado. */
   const clearSessionNotice = useCallback(() => {
-    setState((previous) => (previous.sessionExpired ? { ...previous, sessionExpired: false } : previous));
+    setState((previous) =>
+      previous.sessionExpired ? { ...previous, sessionExpired: false } : previous,
+    );
   }, []);
 
   // Si la API responde 401 (token vencido o inválido), se expira la sesión automáticamente.
@@ -120,10 +136,11 @@ export function AuthProvider({ children }) {
       sessionExpired,
       login,
       logout,
+      updateUser,
       expireSession,
       clearSessionNotice,
     }),
-    [session, sessionExpired, login, logout, expireSession, clearSessionNotice],
+    [session, sessionExpired, login, logout, updateUser, expireSession, clearSessionNotice],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
