@@ -200,7 +200,7 @@ export default function CreatePropertyPage() {
        * esta navegación para ir
        * directamente a HU-021.
        */
-      navigate(
+      void navigate(
         ROUTES.MY_PROPERTIES,
         {
           replace: true,
@@ -507,11 +507,11 @@ export default function CreatePropertyPage() {
             disabled={
               isSubmitting
             }
-            onClick={() =>
-              navigate(
+            onClick={() => {
+              void navigate(
                 ROUTES.MY_PROPERTIES,
-              )
-            }
+              );
+            }}
           >
             Cancelar
           </Button>
