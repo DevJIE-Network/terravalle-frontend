@@ -59,3 +59,21 @@ export function resolveRedirectPath(from) {
   if (!isInternal || isAuthScreen) return ROUTES.HOME;
   return `${pathname}${from.search ?? ''}${from.hash ?? ''}`;
 }
+
+/**
+ * Valida el formato básico de un correo: texto@dominio.ext, sin espacios y con una sola @.
+ * Se implementa sin expresión regular para evitar retroceso (backtracking) costoso.
+ * @example isValidEmail('ana@correo.com') // true
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function isValidEmail(value) {
+  if (typeof value !== 'string' || value.length > 254 || /\s/.test(value)) return false;
+
+  const at = value.indexOf('@');
+  if (at < 1 || at !== value.lastIndexOf('@')) return false;
+
+  // El dominio debe tener un punto que no esté al inicio ni al final.
+  const domain = value.slice(at + 1);
+  return domain.slice(1, -1).includes('.');
+}

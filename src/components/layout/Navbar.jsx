@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { confirmDiscardChanges } from '@/hooks/useUnsavedChanges';
 import { useAuth } from '@/hooks/useAuth';
 import { AUTH_NAV_LINKS, GUEST_NAV_LINKS, ROUTES } from '@/utils/constants';
 import { cn } from '@/utils/helpers';
@@ -43,9 +44,11 @@ export default function Navbar() {
   const closeMenu = () => setIsOpen(false);
 
   const handleLogout = () => {
+    // Si la pantalla actual tiene cambios sin guardar, se pide confirmación antes de salir.
+    if (!confirmDiscardChanges()) return;
     closeMenu();
     logout();
-    navigate(ROUTES.HOME);
+    void navigate(ROUTES.HOME);
   };
 
   // Cerrar el menú móvil con la tecla Escape.
