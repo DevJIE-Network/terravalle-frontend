@@ -46,10 +46,23 @@ describe('HU-019 · Consultar mi perfil', () => {
     renderProfile();
 
     expect(screen.getByText('Cargando tu perfil...')).toBeInTheDocument();
-    expect(await screen.findByText('ana@correo.com')).toBeInTheDocument();
-    expect(screen.getByText('7731234567')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Ana Pérez' })).toBeInTheDocument();
+    expect(screen.getByText('ana@correo.com', { selector: 'dd' })).toBeInTheDocument();
+    expect(screen.getByText('7731234567', { selector: 'dd' })).toBeInTheDocument();
     expect(screen.getByText('No registrado')).toBeInTheDocument();
-    expect(screen.getByText(/2026/)).toBeInTheDocument();
+    expect(screen.getAllByText(/2026/).length).toBeGreaterThan(0);
+  });
+
+  it('muestra las iniciales y qué tanto falta para completar el perfil', async () => {
+    renderProfile();
+
+    expect(await screen.findByText('AP')).toBeInTheDocument();
+    // Nombre, correo y teléfono registrados; falta el correo de contacto: 3 de 4.
+    expect(screen.getByRole('progressbar', { name: 'Perfil completado' })).toHaveAttribute(
+      'aria-valuenow',
+      '75',
+    );
+    expect(screen.getByText('3 de 4 datos')).toBeInTheDocument();
   });
 
   it('muestra "No disponible" si la fecha de registro no existe o no es válida', async () => {
@@ -67,7 +80,7 @@ describe('HU-019 · Consultar mi perfil', () => {
     expect(screen.getByText('No hay conexión con el servidor.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
-    expect(await screen.findByText('ana@correo.com')).toBeInTheDocument();
+    expect(await screen.findByText('ana@correo.com', { selector: 'dd' })).toBeInTheDocument();
     expect(userService.getMyProfile).toHaveBeenCalledTimes(2);
   });
 
@@ -93,6 +106,7 @@ describe('HU-019 · Actualizar mi perfil', () => {
 
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
     await replace(user, 'Nombre completo', 'Ana López');
+    expect(screen.getByText('Tienes cambios sin guardar.')).toBeInTheDocument();
     await replace(user, 'Correo de contacto', '  Ventas@Correo.com ');
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
@@ -127,7 +141,11 @@ describe('HU-019 · Actualizar mi perfil', () => {
     ['Nombre completo', 'A'.repeat(101), 'El nombre no puede superar los 100 caracteres.'],
     ['Correo electrónico de la cuenta', '', 'El correo electrónico es obligatorio.'],
     ['Correo electrónico de la cuenta', 'ana@correo', 'Ingresa un correo electrónico válido.'],
-    ['Teléfono de contacto', '77-ABC-1234', 'El teléfono solo puede contener números, espacios, guiones y +.'],
+    [
+      'Teléfono de contacto',
+      '77-ABC-1234',
+      'El teléfono solo puede contener números, espacios, guiones y +.',
+    ],
     ['Teléfono de contacto', '12345', 'El teléfono debe tener entre 10 y 15 dígitos.'],
     ['Correo de contacto', 'ventas@', 'Ingresa un correo de contacto válido.'],
   ])('CA3 valida "%s" = "%s" sin enviar datos', async (label, value, message) => {
@@ -157,7 +175,9 @@ describe('HU-019 · Actualizar mi perfil', () => {
     await replace(user, 'Correo electrónico de la cuenta', 'otro@correo.com');
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    expect(await screen.findByText('El correo electrónico ya está registrado.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('El correo electrónico ya está registrado.'),
+    ).toBeInTheDocument();
     expect(field('Correo electrónico de la cuenta')).toHaveValue('otro@correo.com');
   });
 
@@ -232,7 +252,10 @@ describe('HU-019 CA4 · Cambios sin guardar', () => {
 
   it('Cancelar con cambios pide confirmación', async () => {
     const user = userEvent.setup();
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const confirm = vi
+      .spyOn(window, 'confirm')
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
     await openEditor(user);
     await replace(user, 'Nombre completo', 'Ana López');
 
@@ -246,7 +269,10 @@ describe('HU-019 CA4 · Cambios sin guardar', () => {
 
   it('salir a otra pantalla con cambios pide confirmación', async () => {
     const user = userEvent.setup();
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const confirm = vi
+      .spyOn(window, 'confirm')
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
     const { router } = renderProfile();
     await user.click(await screen.findByRole('button', { name: 'Editar perfil' }));
     await replace(user, 'Nombre completo', 'Ana López');
