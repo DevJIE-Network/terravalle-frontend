@@ -20,10 +20,21 @@ export const ROUTES = {
   CATALOG: '/catalogo',
   MY_PROPERTIES: '/mis-propiedades',
   CREATE_PROPERTY: '/mis-propiedades/nueva',
+  PROPERTY_ESTIMATION: '/mis-propiedades/:id/estimacion',
   FAVORITES: '/favoritos',
   PROFILE: '/perfil',
   NOT_FOUND: '/404',
 };
+
+/**
+ * Ruta de la estimación orientativa de una propiedad (HU-009).
+ * @example buildPropertyEstimationPath(7) // "/mis-propiedades/7/estimacion"
+ * @param {string|number} propertyId
+ * @returns {string}
+ */
+export function buildPropertyEstimationPath(propertyId) {
+  return ROUTES.PROPERTY_ESTIMATION.replace(':id', encodeURIComponent(String(propertyId)));
+}
 
 /** Claves usadas en localStorage. */
 export const STORAGE_KEYS = {
