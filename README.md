@@ -105,6 +105,7 @@ src/
 | `/login`           | Solo visitantes | `LoginPage`        | HU-018 ✔                 |
 | `/registro`        | Solo visitantes | `RegisterPage`     | HU-017                   |
 | `/mis-propiedades` | Protegida       | `MyPropertiesPage` | HU-024 (y HU-020 a 025)  |
+| `/mis-propiedades/:id/dimensiones` | Protegida | `PropertyDimensionsPage` | HU-021 ✔ |
 | `/favoritos`       | Protegida       | `FavoritesPage`    | HU-030                   |
 | `/perfil`          | Protegida       | `ProfilePage`      | HU-019                   |
 | `/404` y `*`       | Pública         | `NotFoundPage`     | HU-016 ✔                 |

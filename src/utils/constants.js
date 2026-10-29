@@ -21,6 +21,7 @@ export const ROUTES = {
   MY_PROPERTIES: '/mis-propiedades',
   CREATE_PROPERTY: '/mis-propiedades/nueva',
   PROPERTY_ESTIMATION: '/mis-propiedades/:id/estimacion',
+  PROPERTY_DIMENSIONS: '/mis-propiedades/:id/dimensiones',
   FAVORITES: '/favoritos',
   PROFILE: '/perfil',
   NOT_FOUND: '/404',
@@ -35,6 +36,24 @@ export const ROUTES = {
 export function buildPropertyEstimationPath(propertyId) {
   return ROUTES.PROPERTY_ESTIMATION.replace(':id', encodeURIComponent(String(propertyId)));
 }
+
+/**
+ * Ruta del formulario de dimensiones y construcción de una propiedad (HU-021).
+ * @example buildPropertyDimensionsPath(7) // "/mis-propiedades/7/dimensiones"
+ * @param {string|number} propertyId
+ * @returns {string}
+ */
+export function buildPropertyDimensionsPath(propertyId) {
+  return ROUTES.PROPERTY_DIMENSIONS.replace(':id', encodeURIComponent(String(propertyId)));
+}
+
+/** Opciones de "estado general" de la construcción (HU-021). */
+export const CONSTRUCTION_CONDITIONS = [
+  { value: 'excellent', label: 'Excelente' },
+  { value: 'good', label: 'Bueno' },
+  { value: 'fair', label: 'Regular' },
+  { value: 'needs_repair', label: 'Requiere reparaciones' },
+];
 
 /** Claves usadas en localStorage. */
 export const STORAGE_KEYS = {

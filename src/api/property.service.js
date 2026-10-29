@@ -70,3 +70,43 @@ export async function uploadPropertyPhotos(
 
   return data;
 }
+
+/*
+ * HU-021 · Dimensiones y características de construcción.
+ *
+ * Operaciones de HU-005. OJO: el contrato exacto (rutas y nombres de campos) se asumió
+ * porque no viene en el repositorio; si el backend usa otros, se ajusta SOLO aquí.
+ *
+ *   GET /properties/:id/dimensions → { dimensions: {...} | null }
+ *   PUT /properties/:id/dimensions → { message, dimensions: {...} }
+ *
+ * Campos: landArea, frontage, depth, hasConstruction, builtArea, bedrooms,
+ * bathrooms, floors, parkingSpaces, age, condition.
+ */
+
+/**
+ * Obtiene las dimensiones registradas de una propiedad propia.
+ * Si aún no se capturan, devuelve `null` (un 404 de este recurso se toma como "sin datos").
+ * @param {string} propertyId
+ * @returns {Promise<object|null>}
+ */
+export async function getPropertyDimensions(propertyId) {
+  try {
+    const { data } = await client.get(`/properties/${propertyId}/dimensions`);
+    return data.dimensions ?? null;
+  } catch (error) {
+    if (error.status === 404) return null;
+    throw error;
+  }
+}
+
+/**
+ * Guarda (crea o reemplaza) las dimensiones de una propiedad propia.
+ * @param {string} propertyId
+ * @param {object} payload Ver `toDimensionsPayload` en `@/utils/propertyDimensions`.
+ * @returns {Promise<{ message?: string, dimensions: object }>}
+ */
+export async function savePropertyDimensions(propertyId, payload) {
+  const { data } = await client.put(`/properties/${propertyId}/dimensions`, payload);
+  return data;
+}
