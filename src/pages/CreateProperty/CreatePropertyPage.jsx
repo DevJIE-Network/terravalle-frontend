@@ -15,7 +15,10 @@ import {
   PageHeader,
 } from '@/components/ui';
 
-import { ROUTES } from '@/utils/constants';
+import {
+  buildPropertyDimensionsPath,
+  ROUTES,
+} from '@/utils/constants';
 
 const PROPERTY_TYPES = [
   { id: 1, name: 'Terreno' },
@@ -194,22 +197,18 @@ export default function CreatePropertyPage() {
 
       /*
        * PASO 3
-       * Regresar al panel.
-       *
-       * Posteriormente podemos cambiar
-       * esta navegación para ir
-       * directamente a HU-021.
+       * Continuar con las dimensiones (HU-021).
        */
       void navigate(
-        ROUTES.MY_PROPERTIES,
+        buildPropertyDimensionsPath(
+          propertyId,
+        ),
         {
           replace: true,
 
           state: {
             message:
-              'Propiedad registrada correctamente. Puedes continuar completando su información.',
-
-            propertyId,
+              'Propiedad registrada correctamente. Ahora captura sus dimensiones y características.',
           },
         },
       );
