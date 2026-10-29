@@ -7,3 +7,5 @@ export { default as NotFoundPage } from './NotFound/NotFoundPage';
 export { default as ProfilePage } from './Profile/ProfilePage';
 export { default as RegisterPage } from './Register/RegisterPage';
 export { default as CreatePropertyPage } from './CreateProperty/CreatePropertyPage';
+export { default as PropertyEstimationPage } from './PropertyEstimation/PropertyEstimationPage';
+export { default as PropertyDimensionsPage } from './PropertyDimensions/PropertyDimensionsPage';
