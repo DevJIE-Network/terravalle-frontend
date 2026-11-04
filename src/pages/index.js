@@ -9,3 +9,4 @@ export { default as RegisterPage } from './Register/RegisterPage';
 export { default as CreatePropertyPage } from './CreateProperty/CreatePropertyPage';
 export { default as PropertyEstimationPage } from './PropertyEstimation/PropertyEstimationPage';
 export { default as PropertyDimensionsPage } from './PropertyDimensions/PropertyDimensionsPage';
+export { default as PropertyServicesPage } from './PropertyServices/PropertyServicesPage';
