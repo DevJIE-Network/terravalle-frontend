@@ -11,6 +11,7 @@ import { AuthProvider } from '@/context/AuthProvider';
 import {
   CatalogPage,
   CreatePropertyPage,
+  EditPropertyPage,
   FavoritesPage,
   HomePage,
   LoginPage,
@@ -87,6 +88,11 @@ const router = createBrowserRouter(
           <Route
             path={ROUTES.CREATE_PROPERTY}
             element={<CreatePropertyPage />}
+          />
+
+          <Route
+            path={ROUTES.PROPERTY_EDIT}
+            element={<EditPropertyPage />}
           />
 
           <Route
