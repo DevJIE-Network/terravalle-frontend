@@ -23,6 +23,7 @@ export const ROUTES = {
   PROPERTY_ESTIMATION: '/mis-propiedades/:id/estimacion',
   PROPERTY_DIMENSIONS: '/mis-propiedades/:id/dimensiones',
   PROPERTY_SERVICES: '/mis-propiedades/:id/servicios',
+  PROPERTY_EDIT: '/mis-propiedades/:id/editar',
   FAVORITES: '/favoritos',
   PROFILE: '/perfil',
   NOT_FOUND: '/404',
@@ -57,6 +58,27 @@ export function buildPropertyDimensionsPath(propertyId) {
 export function buildPropertyServicesPath(propertyId) {
   return ROUTES.PROPERTY_SERVICES.replace(':id', encodeURIComponent(String(propertyId)));
 }
+
+/**
+ * Ruta de la edición de los datos generales de una propiedad (HU-024).
+ * @example buildPropertyEditPath(7) // "/mis-propiedades/7/editar"
+ * @param {string|number} propertyId
+ * @returns {string}
+ */
+export function buildPropertyEditPath(propertyId) {
+  return ROUTES.PROPERTY_EDIT.replace(':id', encodeURIComponent(String(propertyId)));
+}
+
+/**
+ * Tipos de propiedad (los mismos ids que usa el registro de HU-020).
+ * CreatePropertyPage conserva su propia copia; conviene unificarlas cuando se pueda.
+ */
+export const PROPERTY_TYPES = [
+  { id: 1, name: 'Terreno' },
+  { id: 2, name: 'Casa' },
+  { id: 3, name: 'Departamento' },
+  { id: 4, name: 'Otro' },
+];
 
 /** Opciones de "estado general" de la construcción (HU-021). */
 export const CONSTRUCTION_CONDITIONS = [
