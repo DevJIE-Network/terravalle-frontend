@@ -26,15 +26,8 @@ export async function getEstimations(propertyId) {
   return data;
 }
 
-/**
- * Detalle de una propiedad propia (HU-008).
- * @param {string} propertyId
- * @returns {Promise<object>}
- */
-export async function getMyProperty(propertyId) {
-  const { data } = await client.get(`/properties/mine/${propertyId}`);
-  return data.property;
-}
+/** Detalle de una propiedad propia (HU-008). Vive en property.service; se reexporta aquí. */
+export { getMyProperty } from './property.service';
 
 /**
  * Define el precio final de publicación (HU-008). Es independiente del valor estimado.

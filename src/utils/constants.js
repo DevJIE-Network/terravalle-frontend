@@ -22,6 +22,7 @@ export const ROUTES = {
   CREATE_PROPERTY: '/mis-propiedades/nueva',
   PROPERTY_ESTIMATION: '/mis-propiedades/:id/estimacion',
   PROPERTY_DIMENSIONS: '/mis-propiedades/:id/dimensiones',
+  PROPERTY_SERVICES: '/mis-propiedades/:id/servicios',
   FAVORITES: '/favoritos',
   PROFILE: '/perfil',
   NOT_FOUND: '/404',
@@ -45,6 +46,16 @@ export function buildPropertyEstimationPath(propertyId) {
  */
 export function buildPropertyDimensionsPath(propertyId) {
   return ROUTES.PROPERTY_DIMENSIONS.replace(':id', encodeURIComponent(String(propertyId)));
+}
+
+/**
+ * Ruta de la selección de servicios de una propiedad (HU-022).
+ * @example buildPropertyServicesPath(7) // "/mis-propiedades/7/servicios"
+ * @param {string|number} propertyId
+ * @returns {string}
+ */
+export function buildPropertyServicesPath(propertyId) {
+  return ROUTES.PROPERTY_SERVICES.replace(':id', encodeURIComponent(String(propertyId)));
 }
 
 /** Opciones de "estado general" de la construcción (HU-021). */
