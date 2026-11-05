@@ -4,6 +4,7 @@ import {
   buildPropertyDimensionsPath,
   buildPropertyEditPath,
   buildPropertyEstimationPath,
+  buildPropertyLocationPath,
   buildPropertyServicesPath,
 } from '@/utils/constants';
 import { cn, formatPrice } from '@/utils/helpers';
@@ -126,6 +127,12 @@ export default function PropertyCard({ property, onAction }) {
             </div>
 
             <nav aria-label={`Secciones de ${property.title}`} className="flex flex-wrap gap-x-4">
+              <Link to={buildPropertyEditPath(property.id)} className={LINK_CLASS}>
+                Datos generales
+              </Link>
+              <Link to={buildPropertyLocationPath(property.id)} className={LINK_CLASS}>
+                Ubicación
+              </Link>
               <Link to={buildPropertyDimensionsPath(property.id)} className={LINK_CLASS}>
                 Dimensiones
               </Link>

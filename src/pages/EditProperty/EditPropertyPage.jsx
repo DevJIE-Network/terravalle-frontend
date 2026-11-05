@@ -8,6 +8,7 @@ import {
   ROUTES,
   buildPropertyDimensionsPath,
   buildPropertyEstimationPath,
+  buildPropertyLocationPath,
   buildPropertyServicesPath,
 } from '@/utils/constants';
 import { cn, formatPrice } from '@/utils/helpers';
@@ -43,6 +44,7 @@ function accessProblem(error) {
 
 function SectionLinks({ propertyId }) {
   const links = [
+    { to: buildPropertyLocationPath(propertyId), label: 'Ubicación y entorno' },
     { to: buildPropertyDimensionsPath(propertyId), label: 'Dimensiones y construcción' },
     { to: buildPropertyServicesPath(propertyId), label: 'Servicios disponibles' },
     { to: buildPropertyEstimationPath(propertyId), label: 'Estimación del valor' },

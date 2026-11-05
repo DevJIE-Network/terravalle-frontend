@@ -121,3 +121,42 @@ export async function savePropertyServices(propertyId, serviceIds) {
   const { data } = await client.put(`/properties/${propertyId}/services`, { serviceIds });
   return data;
 }
+
+// HU-023 · Ubicación y puntos cercanos: /properties/:id/location, /nearby-place-*
+
+/** Ubicación principal de la propiedad (null si aún no se registra). */
+export async function getPropertyLocation(propertyId) {
+  try {
+    const { data } = await client.get(`/properties/${propertyId}/location`);
+    return data.location ?? null;
+  } catch (error) {
+    if (error.status === 404) return null;
+    throw error;
+  }
+}
+
+export async function savePropertyLocation(propertyId, payload) {
+  const { data } = await client.put(`/properties/${propertyId}/location`, payload);
+  return data;
+}
+
+/** Catálogo de categorías de puntos cercanos (ej. Hospital, Escuela). */
+export async function getNearbyPlaceCategories() {
+  const { data } = await client.get('/properties/nearby-place-categories');
+  return data.categories ?? [];
+}
+
+export async function getNearbyPlaces(propertyId) {
+  const { data } = await client.get(`/properties/${propertyId}/nearby-places`);
+  return data.nearbyPlaces ?? [];
+}
+
+export async function createNearbyPlace(propertyId, payload) {
+  const { data } = await client.post(`/properties/${propertyId}/nearby-places`, payload);
+  return data;
+}
+
+export async function deleteNearbyPlace(propertyId, placeId) {
+  const { data } = await client.delete(`/properties/${propertyId}/nearby-places/${placeId}`);
+  return data;
+}
