@@ -23,6 +23,7 @@ export const ROUTES = {
   PROPERTY_ESTIMATION: '/mis-propiedades/:id/estimacion',
   PROPERTY_DIMENSIONS: '/mis-propiedades/:id/dimensiones',
   PROPERTY_SERVICES: '/mis-propiedades/:id/servicios',
+  PROPERTY_LOCATION: '/mis-propiedades/:id/ubicacion',
   PROPERTY_EDIT: '/mis-propiedades/:id/editar',
   FAVORITES: '/favoritos',
   PROFILE: '/perfil',
@@ -50,13 +51,23 @@ export function buildPropertyDimensionsPath(propertyId) {
 }
 
 /**
- * Ruta de la selección de servicios de una propiedad (HU-022).
+ * Ruta del formulario de servicios de una propiedad (HU-022).
  * @example buildPropertyServicesPath(7) // "/mis-propiedades/7/servicios"
  * @param {string|number} propertyId
  * @returns {string}
  */
 export function buildPropertyServicesPath(propertyId) {
   return ROUTES.PROPERTY_SERVICES.replace(':id', encodeURIComponent(String(propertyId)));
+}
+
+/**
+ * Ruta de la ubicación y entorno de una propiedad (HU-023).
+ * @example buildPropertyLocationPath(7) // "/mis-propiedades/7/ubicacion"
+ * @param {string|number} propertyId
+ * @returns {string}
+ */
+export function buildPropertyLocationPath(propertyId) {
+  return ROUTES.PROPERTY_LOCATION.replace(':id', encodeURIComponent(String(propertyId)));
 }
 
 /**

@@ -20,6 +20,7 @@ import {
   ProfilePage,
   PropertyDimensionsPage,
   PropertyEstimationPage,
+  PropertyLocationPage,
   PropertyServicesPage,
   RegisterPage,
 } from '@/pages';
@@ -103,6 +104,11 @@ const router = createBrowserRouter(
           <Route
             path={ROUTES.PROPERTY_SERVICES}
             element={<PropertyServicesPage />}
+          />
+
+          <Route
+            path={ROUTES.PROPERTY_LOCATION}
+            element={<PropertyLocationPage />}
           />
 
           <Route
