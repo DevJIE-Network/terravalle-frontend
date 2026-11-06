@@ -22,6 +22,9 @@ export const ROUTES = {
   CREATE_PROPERTY: '/mis-propiedades/nueva',
   PROPERTY_ESTIMATION: '/mis-propiedades/:id/estimacion',
   PROPERTY_DIMENSIONS: '/mis-propiedades/:id/dimensiones',
+  PROPERTY_SERVICES: '/mis-propiedades/:id/servicios',
+  PROPERTY_LOCATION: '/mis-propiedades/:id/ubicacion',
+  PROPERTY_EDIT: '/mis-propiedades/:id/editar',
   FAVORITES: '/favoritos',
   PROFILE: '/perfil',
   NOT_FOUND: '/404',
@@ -46,6 +49,47 @@ export function buildPropertyEstimationPath(propertyId) {
 export function buildPropertyDimensionsPath(propertyId) {
   return ROUTES.PROPERTY_DIMENSIONS.replace(':id', encodeURIComponent(String(propertyId)));
 }
+
+/**
+ * Ruta del formulario de servicios de una propiedad (HU-022).
+ * @example buildPropertyServicesPath(7) // "/mis-propiedades/7/servicios"
+ * @param {string|number} propertyId
+ * @returns {string}
+ */
+export function buildPropertyServicesPath(propertyId) {
+  return ROUTES.PROPERTY_SERVICES.replace(':id', encodeURIComponent(String(propertyId)));
+}
+
+/**
+ * Ruta de la ubicación y entorno de una propiedad (HU-023).
+ * @example buildPropertyLocationPath(7) // "/mis-propiedades/7/ubicacion"
+ * @param {string|number} propertyId
+ * @returns {string}
+ */
+export function buildPropertyLocationPath(propertyId) {
+  return ROUTES.PROPERTY_LOCATION.replace(':id', encodeURIComponent(String(propertyId)));
+}
+
+/**
+ * Ruta de la edición de los datos generales de una propiedad (HU-024).
+ * @example buildPropertyEditPath(7) // "/mis-propiedades/7/editar"
+ * @param {string|number} propertyId
+ * @returns {string}
+ */
+export function buildPropertyEditPath(propertyId) {
+  return ROUTES.PROPERTY_EDIT.replace(':id', encodeURIComponent(String(propertyId)));
+}
+
+/**
+ * Tipos de propiedad (los mismos ids que usa el registro de HU-020).
+ * CreatePropertyPage conserva su propia copia; conviene unificarlas cuando se pueda.
+ */
+export const PROPERTY_TYPES = [
+  { id: 1, name: 'Terreno' },
+  { id: 2, name: 'Casa' },
+  { id: 3, name: 'Departamento' },
+  { id: 4, name: 'Otro' },
+];
 
 /** Opciones de "estado general" de la construcción (HU-021). */
 export const CONSTRUCTION_CONDITIONS = [
