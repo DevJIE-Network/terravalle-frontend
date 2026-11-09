@@ -1,4 +1,5 @@
 export { default as CatalogPage } from './Catalog/CatalogPage';
+export { default as PublicPropertyPage } from './PublicProperty/PublicPropertyPage';
 export { default as FavoritesPage } from './Favorites/FavoritesPage';
 export { default as HomePage } from './Home/HomePage';
 export { default as LoginPage } from './Login/LoginPage';

@@ -18,6 +18,7 @@ export const ROUTES = {
   LOGIN: '/login',
   REGISTER: '/registro',
   CATALOG: '/catalogo',
+  PUBLIC_PROPERTY: '/propiedades/:id',
   MY_PROPERTIES: '/mis-propiedades',
   CREATE_PROPERTY: '/mis-propiedades/nueva',
   PROPERTY_ESTIMATION: '/mis-propiedades/:id/estimacion',
@@ -29,6 +30,11 @@ export const ROUTES = {
   PROFILE: '/perfil',
   NOT_FOUND: '/404',
 };
+
+/** Ruta pública reservada para la ficha, independiente de las rutas del propietario. */
+export function buildPublicPropertyPath(propertyId) {
+  return ROUTES.PUBLIC_PROPERTY.replace(':id', encodeURIComponent(String(propertyId)));
+}
 
 /**
  * Ruta de la estimación orientativa de una propiedad (HU-009).
