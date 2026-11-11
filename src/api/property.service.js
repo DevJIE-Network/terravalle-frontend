@@ -1,5 +1,15 @@
 import client from './client';
 
+/** Catálogo público (HU-010): no necesita token ni debe expirar una sesión. */
+export async function getPublicProperties({ page = 1, limit = 12 } = {}) {
+  const { data } = await client.get('/properties', {
+    params: { page, limit },
+    skipAuth: true,
+  });
+
+  return { properties: data.properties ?? [], pagination: data.pagination ?? null };
+}
+
 export async function createProperty(payload) {
   const { data } = await client.post('/properties', payload);
 
