@@ -22,6 +22,7 @@ import {
   PropertyEstimationPage,
   PropertyLocationPage,
   PropertyServicesPage,
+  PublicPropertyPage,
   RegisterPage,
 } from '@/pages';
 
@@ -56,92 +57,44 @@ const router = createBrowserRouter(
     <Route element={<RootLayout />}>
       <Route element={<MainLayout />}>
         {/* Públicas */}
-        <Route
-          path={ROUTES.HOME}
-          element={<HomePage />}
-        />
+        <Route path={ROUTES.HOME} element={<HomePage />} />
 
-        <Route
-          path={ROUTES.CATALOG}
-          element={<CatalogPage />}
-        />
+        <Route path={ROUTES.CATALOG} element={<CatalogPage />} />
+
+        <Route path={ROUTES.PUBLIC_PROPERTY} element={<PublicPropertyPage />} />
 
         {/* Solo visitantes */}
         <Route element={<GuestRoute />}>
-          <Route
-            path={ROUTES.LOGIN}
-            element={<LoginPage />}
-          />
+          <Route path={ROUTES.LOGIN} element={<LoginPage />} />
 
-          <Route
-            path={ROUTES.REGISTER}
-            element={<RegisterPage />}
-          />
+          <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
         </Route>
 
         {/* Protegidas */}
         <Route element={<ProtectedRoute />}>
-          <Route
-            path={ROUTES.MY_PROPERTIES}
-            element={<MyPropertiesPage />}
-          />
+          <Route path={ROUTES.MY_PROPERTIES} element={<MyPropertiesPage />} />
 
-          <Route
-            path={ROUTES.CREATE_PROPERTY}
-            element={<CreatePropertyPage />}
-          />
+          <Route path={ROUTES.CREATE_PROPERTY} element={<CreatePropertyPage />} />
 
-          <Route
-            path={ROUTES.PROPERTY_EDIT}
-            element={<EditPropertyPage />}
-          />
+          <Route path={ROUTES.PROPERTY_EDIT} element={<EditPropertyPage />} />
 
-          <Route
-            path={ROUTES.PROPERTY_DIMENSIONS}
-            element={<PropertyDimensionsPage />}
-          />
+          <Route path={ROUTES.PROPERTY_DIMENSIONS} element={<PropertyDimensionsPage />} />
 
-          <Route
-            path={ROUTES.PROPERTY_SERVICES}
-            element={<PropertyServicesPage />}
-          />
+          <Route path={ROUTES.PROPERTY_SERVICES} element={<PropertyServicesPage />} />
 
-          <Route
-            path={ROUTES.PROPERTY_LOCATION}
-            element={<PropertyLocationPage />}
-          />
+          <Route path={ROUTES.PROPERTY_LOCATION} element={<PropertyLocationPage />} />
 
-          <Route
-            path={ROUTES.PROPERTY_ESTIMATION}
-            element={<PropertyEstimationPage />}
-          />
+          <Route path={ROUTES.PROPERTY_ESTIMATION} element={<PropertyEstimationPage />} />
 
-          <Route
-            path={ROUTES.FAVORITES}
-            element={<FavoritesPage />}
-          />
+          <Route path={ROUTES.FAVORITES} element={<FavoritesPage />} />
 
-          <Route
-            path={ROUTES.PROFILE}
-            element={<ProfilePage />}
-          />
+          <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
         </Route>
 
         {/* No encontrada */}
-        <Route
-          path={ROUTES.NOT_FOUND}
-          element={<NotFoundPage />}
-        />
+        <Route path={ROUTES.NOT_FOUND} element={<NotFoundPage />} />
 
-        <Route
-          path="*"
-          element={
-            <Navigate
-              to={ROUTES.NOT_FOUND}
-              replace
-            />
-          }
-        />
+        <Route path="*" element={<Navigate to={ROUTES.NOT_FOUND} replace />} />
       </Route>
     </Route>,
   ),
