@@ -1,64 +1,130 @@
-// TODO HU-026: catálogo de propiedades con paginación
-// TODO HU-027: barra de búsqueda y panel de filtros
-// TODO HU-028: enlace a la ficha detallada de cada propiedad
-import { useState } from 'react';
-import client from '@/api/client';
-import { Alert, Button, Card, EmptyState, ErrorState, Loader, PageHeader } from '@/components/ui';
+import { useEffect, useState } from 'react';
+import { getPublicProperties } from '@/api';
+import { PropertyCardSkeleton, PublicPropertyCard } from '@/components/property';
+import { Button, EmptyState, ErrorState, PageHeader } from '@/components/ui';
+import { appendUniqueProperties, PUBLIC_PROPERTIES_PAGE_SIZE } from '@/utils/publicProperties';
 
-/**
- * Además del placeholder, esta página tiene un EJEMPLO del patrón de carga/error
- * con el cliente HTTP (sección "Ejemplo: manejo de errores"). Cópialo en tus pantallas
- * y bórralo de aquí cuando se implemente HU-026.
- */
+const GRID_CLASSES = 'grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3';
+
 export default function CatalogPage() {
-  // status: 'idle' | 'loading' | 'success' | 'error'
-  const [status, setStatus] = useState('idle');
-  const [error, setError] = useState(null);
+  const [properties, setProperties] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [status, setStatus] = useState('loading');
+  const [loadError, setLoadError] = useState('');
 
-  const testConnection = async () => {
-    setStatus('loading');
-    setError(null);
-    try {
-      // Endpoint de ejemplo; si el backend no está corriendo verás el mensaje de "sin conexión".
-      await client.get('/properties');
-      setStatus('success');
-    } catch (err) {
-      setError(err); // err.message ya viene en español desde el interceptor
-      setStatus('error');
-    }
-  };
+  useEffect(() => {
+    let active = true;
+    getPublicProperties({ page, limit: PUBLIC_PROPERTIES_PAGE_SIZE })
+      .then((result) => {
+        if (!active) return;
+        setProperties((current) =>
+          appendUniqueProperties(page === 1 ? [] : current, result.properties),
+        );
+        setPagination(result.pagination);
+        setStatus('ready');
+      })
+      .catch(() => {
+        if (!active) return;
+        setLoadError(
+          'No pudimos consultar las propiedades. Revisa tu conexión e inténtalo de nuevo.',
+        );
+        setStatus(page === 1 ? 'error' : 'moreError');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [page, loadAttempt]);
+
+  function loadMore() {
+    if (status !== 'ready' || !pagination?.hasNextPage) return;
+    setStatus('loadingMore');
+    setLoadError('');
+    setPage(pagination.page + 1);
+  }
+
+  function retry() {
+    setStatus(page === 1 ? 'loading' : 'loadingMore');
+    setLoadError('');
+    setLoadAttempt((attempt) => attempt + 1);
+  }
+
+  const hasProperties = properties.length > 0;
 
   return (
-    <section className="flex flex-col gap-8">
+    <section>
       <PageHeader
-        title="Catálogo"
-        description="Explora las propiedades disponibles, busca por zona y filtra por precio, tipo y características."
+        title="Propiedades disponibles"
+        description="Encuentra un lugar para tu próximo proyecto. Explora terrenos y viviendas en TerraValle."
       />
 
-      <EmptyState
-        title="Todavía no hay propiedades para mostrar"
-        description="Aquí aparecerá el listado de propiedades con búsqueda, filtros y paginación."
-      />
+      <p role="status" className="sr-only">
+        {status === 'loading' && 'Cargando propiedades...'}
+        {status === 'loadingMore' && 'Cargando más propiedades...'}
+        {status === 'ready' && `${properties.length} propiedades cargadas.`}
+      </p>
 
-      <Card title="Ejemplo: manejo de errores del cliente HTTP">
-        <p className="text-ink-muted mb-4 text-sm">
-          Hace una petición a <code className="break-all">GET /properties</code> y muestra el
-          resultado con los componentes Loader, ErrorState y Alert.
-        </p>
+      {status === 'loading' && (
+        <div aria-hidden="true" className={GRID_CLASSES}>
+          {Array.from({ length: 6 }, (_, index) => (
+            <PropertyCardSkeleton key={index} />
+          ))}
+        </div>
+      )}
 
-        {status === 'idle' && (
-          <Button variant="secondary" onClick={testConnection}>
-            Probar conexión con la API
-          </Button>
-        )}
-        {status === 'loading' && <Loader label="Consultando propiedades..." />}
-        {status === 'error' && <ErrorState message={error.message} onRetry={testConnection} />}
-        {status === 'success' && (
-          <Alert variant="success" onClose={() => setStatus('idle')}>
-            La API respondió correctamente.
-          </Alert>
-        )}
-      </Card>
+      {status === 'error' && (
+        <ErrorState title="No pudimos cargar el catálogo" message={loadError} onRetry={retry} />
+      )}
+
+      {status === 'ready' && !hasProperties && (
+        <EmptyState
+          title="No hay propiedades disponibles en este momento."
+          description="Vuelve pronto para descubrir nuevas oportunidades."
+        />
+      )}
+
+      {hasProperties && (
+        <>
+          <p className="text-ink-muted mb-4 text-sm">
+            Mostrando {properties.length}
+            {pagination?.total != null && ` de ${pagination.total}`} propiedades
+          </p>
+          <ul id="catalog-properties" aria-label="Propiedades disponibles" className={GRID_CLASSES}>
+            {properties.map((property) => (
+              <li key={property.id}>
+                <PublicPropertyCard property={property} />
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-8 flex flex-col items-center gap-4">
+            {status === 'moreError' ? (
+              <ErrorState
+                title="No pudimos cargar más propiedades"
+                message={loadError}
+                onRetry={retry}
+                className="w-full"
+              />
+            ) : pagination?.hasNextPage ? (
+              <Button
+                onClick={loadMore}
+                loading={status === 'loadingMore'}
+                aria-controls="catalog-properties"
+              >
+                {status === 'loadingMore'
+                  ? 'Cargando más propiedades...'
+                  : 'Cargar más propiedades'}
+              </Button>
+            ) : (
+              <p className="text-ink-muted text-center text-sm">
+                Has visto todas las propiedades disponibles.
+              </p>
+            )}
+          </div>
+        </>
+      )}
     </section>
   );
 }
