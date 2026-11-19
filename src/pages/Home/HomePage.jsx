@@ -6,11 +6,12 @@ import { ROUTES } from '@/utils/constants';
 export default function HomePage() {
   return (
     <section>
+      <p className="font-highlight text-earth-700 mb-2 text-2xl">terrenos con historia clara</p>
       <PageHeader
         title="Bienvenido a TerraValle"
         description="Publica tus inmuebles con fichas técnicas estandarizadas y obtén una estimación orientativa de su valor."
       />
-         <EmptyState
+      <EmptyState
         title="Despliegue automático con Azure funcionando correctamente"
         description="Presentación de la plataforma, buscador rápido y propiedades destacadas."
         action={<Button to={ROUTES.CATALOG}>Ver catálogo</Button>}
