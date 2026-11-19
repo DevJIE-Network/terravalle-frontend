@@ -1,9 +1,15 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { estimationService } from '@/api';
 import PropertyEstimationPage from '@/pages/PropertyEstimation/PropertyEstimationPage';
-import { buildPropertyEstimationPath, ROUTES } from '@/utils/constants';
+import {
+  buildPropertyDimensionsPath,
+  buildPropertyEstimationPath,
+  buildPropertyLocationPath,
+  ROUTES,
+} from '@/utils/constants';
+import { SLOW_ESTIMATION_MS } from '@/utils/propertyEstimation';
 import { renderWithSession } from './renderWithSession';
 
 vi.mock('@/api', async (importOriginal) => ({
@@ -256,5 +262,137 @@ describe('HU-009 CA4 · Precio final de publicación', () => {
     await user.type(input, '1');
     await user.click(screen.getByRole('button', { name: 'Guardar precio' }));
     expect(await screen.findByText('Error del servidor.')).toBeInTheDocument();
+  });
+});
+
+describe('Solicitud y visualización de la estimación', () => {
+  it('CA1 muestra el indicador de carga y no permite otra solicitud en curso', async () => {
+    const user = userEvent.setup();
+    let resolveEstimation;
+    estimationService.requestEstimation.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveEstimation = resolve;
+        }),
+    );
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Estimar valor con IA' }));
+
+    expect(screen.getByText('Analizando tu propiedad...')).toBeInTheDocument();
+    expect(screen.queryByText('Aún no hay estimaciones')).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: /Calculando/ });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(estimationService.requestEstimation).toHaveBeenCalledTimes(1);
+
+    await act(async () => resolveEstimation({ estimation: ESTIMATION }));
+    expect(await screen.findByText('Factores considerados')).toBeInTheDocument();
+    expect(screen.queryByText('Analizando tu propiedad...')).not.toBeInTheDocument();
+  });
+
+  it('CA1 avisa cuando la estimación tarda más de lo habitual', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      estimationService.requestEstimation.mockReturnValue(new Promise(() => {}));
+      renderPage();
+
+      await user.click(await screen.findByRole('button', { name: 'Estimar valor con IA' }));
+      expect(screen.queryByText(/tardando más de lo habitual/)).not.toBeInTheDocument();
+
+      await act(async () => {
+        vi.advanceTimersByTime(SLOW_ESTIMATION_MS);
+      });
+      expect(screen.getByText(/tardando más de lo habitual/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('CA2 ofrece accesos directos a cada sección, sin repetirlos', async () => {
+    const user = userEvent.setup();
+    estimationService.requestEstimation.mockRejectedValue(
+      apiError(422, {
+        missing: [
+          {
+            field: 'characteristics',
+            section: 'Dimensiones y construcción',
+            message: 'Superficie.',
+          },
+          { field: 'builtArea', section: 'Dimensiones y construcción', message: 'Construida.' },
+          { field: 'location', section: 'Ubicación', message: 'Municipio y estado.' },
+        ],
+      }),
+    );
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Estimar valor con IA' }));
+
+    const nav = await screen.findByRole('navigation', { name: 'Completar información' });
+    const links = within(nav).getAllByRole('link');
+    expect(links.map((link) => link.textContent)).toEqual([
+      'Completar dimensiones',
+      'Completar ubicación',
+    ]);
+    expect(links[0]).toHaveAttribute('href', buildPropertyDimensionsPath(7));
+    expect(links[1]).toHaveAttribute('href', buildPropertyLocationPath(7));
+  });
+
+  it('si se agota el tiempo de espera lo explica y permite reintentar', async () => {
+    const user = userEvent.setup();
+    estimationService.requestEstimation
+      .mockRejectedValueOnce(
+        Object.assign(new Error('El servidor tardó demasiado.'), {
+          status: null,
+          code: 'ECONNABORTED',
+        }),
+      )
+      .mockResolvedValueOnce({ estimation: ESTIMATION });
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Estimar valor con IA' }));
+
+    expect(await screen.findByText('La estimación tardó demasiado')).toBeInTheDocument();
+    expect(screen.getByText(/Tu información está guardada/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(await screen.findByText('Factores considerados')).toBeInTheDocument();
+    expect(estimationService.requestEstimation).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText('La estimación tardó demasiado')).not.toBeInTheDocument();
+  });
+
+  it('un error de conexión permite reintentar y uno de validación no', async () => {
+    const user = userEvent.setup();
+    estimationService.requestEstimation
+      .mockRejectedValueOnce(apiError(null, null, 'No hay conexión con el servidor.'))
+      .mockRejectedValueOnce(apiError(409, { message: 'La propiedad está retirada.' }));
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Estimar valor con IA' }));
+    expect(await screen.findByText('No hay conexión con el servidor.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(await screen.findByText('La propiedad está retirada.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+  });
+
+  it('la advertencia siempre se muestra y el modelo solo cuando el backend lo informa', async () => {
+    estimationService.getEstimations.mockResolvedValue({
+      estimations: [{ ...ESTIMATION, modelName: null, modelVersion: null, disclaimer: '' }],
+    });
+    renderPage();
+
+    expect(await screen.findByText(/No es un avalúo oficial/)).toBeInTheDocument();
+    expect(screen.queryByText(/Modelo /)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cerrar/i })).not.toBeInTheDocument();
+  });
+
+  it('CA3 muestra la fecha y la versión del modelo', async () => {
+    estimationService.getEstimations.mockResolvedValue({ estimations: [ESTIMATION] });
+    renderPage();
+
+    expect(await screen.findByText(/Generada el/)).toBeInTheDocument();
+    expect(screen.getByText('Modelo terravalle-valuador · versión 1.1.0')).toBeInTheDocument();
   });
 });

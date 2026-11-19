@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { estimationService } from '@/api';
 import { Alert, Button, Card, ErrorState, Input, Loader, PageHeader } from '@/components/ui';
 import { ROUTES } from '@/utils/constants';
 import { cn, formatPrice } from '@/utils/helpers';
+import {
+  SLOW_ESTIMATION_MS,
+  isTimeoutError,
+  modelLabel,
+  uniqueMissingLinks,
+} from '@/utils/propertyEstimation';
 
 const DISCLAIMER_FALLBACK =
   'Estimación orientativa generada automáticamente. No es un avalúo oficial ni garantiza el precio de venta; el precio final de publicación lo decide el vendedor.';
@@ -58,8 +64,9 @@ const priceToInput = (price) => (price === null || price === undefined ? '' : St
 /* Bloques de presentación                                             */
 /* ------------------------------------------------------------------ */
 
-/** CA2: datos que faltan para estimar. */
-function MissingData({ missing }) {
+/** CA2: datos que faltan para estimar, con accesos directos a cada sección. */
+function MissingData({ missing, propertyId }) {
+  const links = uniqueMissingLinks(missing, propertyId);
   return (
     <Alert variant="warning" title="Completa la información de la propiedad">
       <p>Antes de estimar el valor necesitas registrar:</p>
@@ -70,7 +77,42 @@ function MissingData({ missing }) {
           </li>
         ))}
       </ul>
+      <nav aria-label="Completar información" className="mt-3 flex flex-wrap gap-2">
+        {links.map((link) => (
+          <Link
+            key={link.to}
+            to={link.to}
+            className="inline-flex items-center rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-medium text-amber-900 hover:bg-amber-100"
+          >
+            {link.label}
+          </Link>
+        ))}
+      </nav>
     </Alert>
+  );
+}
+
+/** CA1: indicador mientras se calcula; avisa si tarda más de lo habitual. */
+function EstimatingPanel() {
+  const [isSlow, setIsSlow] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsSlow(true), SLOW_ESTIMATION_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white px-6 py-10 text-center">
+      <Loader label="Analizando tu propiedad..." />
+      <p className="text-ink-muted mt-2 text-sm">
+        Revisamos superficie, construcción, ubicación, servicios, entorno y comparables.
+      </p>
+      {isSlow && (
+        <p role="status" className="text-earth-800 mt-3 text-sm font-medium">
+          Está tardando más de lo habitual. No cierres esta página; seguimos trabajando.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -159,9 +201,9 @@ function EstimationResult({ estimation }) {
           <p>{estimation.disclaimer || DISCLAIMER_FALLBACK}</p>
         </div>
 
-        <p className="text-ink-muted text-xs">
-          Modelo {estimation.modelName} · versión {estimation.modelVersion}
-        </p>
+        {modelLabel(estimation) && (
+          <p className="text-ink-muted text-xs">{modelLabel(estimation)}</p>
+        )}
       </div>
     </div>
   );
@@ -267,7 +309,7 @@ function EstimationHistory({ estimations }) {
 /* ------------------------------------------------------------------ */
 
 /**
- * HU-009 · Obtener estimación orientativa del valor mediante IA.
+ * Solicitud y visualización de la estimación orientativa del valor de una propiedad.
  * Ruta: /mis-propiedades/:id/estimacion (solo el dueño de la propiedad).
  */
 export default function PropertyEstimationPage() {
@@ -281,7 +323,7 @@ export default function PropertyEstimationPage() {
 
   const [isEstimating, setIsEstimating] = useState(false);
   const [missing, setMissing] = useState([]);
-  const [estimateError, setEstimateError] = useState('');
+  const [estimateError, setEstimateError] = useState(null); // { title, message, canRetry }
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
@@ -314,15 +356,26 @@ export default function PropertyEstimationPage() {
     try {
       setIsEstimating(true);
       setMissing([]);
-      setEstimateError('');
+      setEstimateError(null);
       setSuccessMessage('');
       const result = await estimationService.requestEstimation(id);
       setEstimations((previous) => [result.estimation, ...previous]);
     } catch (error) {
       if (error.status === 422 && Array.isArray(error.details?.missing)) {
         setMissing(error.details.missing);
+      } else if (isTimeoutError(error)) {
+        setEstimateError({
+          title: 'La estimación tardó demasiado',
+          message:
+            'El servicio no respondió a tiempo. Tu información está guardada; intenta de nuevo en unos momentos.',
+          canRetry: true,
+        });
       } else {
-        setEstimateError(error.details?.message ?? error.message);
+        setEstimateError({
+          title: 'No se pudo generar la estimación',
+          message: error.details?.message ?? error.message,
+          canRetry: !error.status || error.status >= 500,
+        });
       }
     } finally {
       setIsEstimating(false);
@@ -397,21 +450,28 @@ export default function PropertyEstimationPage() {
               )}
             </Card>
 
-            {missing.length > 0 && <MissingData missing={missing} />}
+            {missing.length > 0 && <MissingData missing={missing} propertyId={id} />}
 
             {estimateError && (
               <Alert
                 variant="error"
-                title="No se pudo generar la estimación"
-                onClose={() => setEstimateError('')}
+                title={estimateError.title}
+                onClose={() => setEstimateError(null)}
               >
-                {estimateError}
+                <p>{estimateError.message}</p>
+                {estimateError.canRetry && (
+                  <Button variant="secondary" size="sm" className="mt-3" onClick={handleEstimate}>
+                    Reintentar
+                  </Button>
+                )}
               </Alert>
             )}
 
-            {latest ? (
-              <EstimationResult estimation={latest} />
-            ) : (
+            {isEstimating && <EstimatingPanel />}
+
+            {!isEstimating && latest && <EstimationResult estimation={latest} />}
+
+            {!isEstimating && !latest && (
               <div className="rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
                 <span className="bg-surface-muted text-ink-muted mx-auto flex size-12 items-center justify-center rounded-full">
                   <Icon name="clipboard" className="size-6" />

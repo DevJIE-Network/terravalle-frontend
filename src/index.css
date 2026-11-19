@@ -7,39 +7,83 @@
  * Para cambiar la paleta del proyecto basta con editar estos valores.
  */
 @theme {
-  /* Verde bosque: color principal (botones, enlaces activos, encabezados) */
-  --color-primary-50: #f2f7f3;
-  --color-primary-100: #e0ece2;
-  --color-primary-200: #c2d9c7;
-  --color-primary-300: #97bea1;
-  --color-primary-400: #679c76;
-  --color-primary-500: #467f57;
-  --color-primary-600: #346544;
-  --color-primary-700: #2a5138;
-  --color-primary-800: #24412f;
-  --color-primary-900: #1e3628;
+  /*
+   * Identidad de marca (manual del cliente):
+   *   Teal profundo #1F5C56 · primario     Barro / clay #B6552B · acento
+   *   Arena #EAE2D3 · fondo                Tinta #2B2420 · texto
+   *   Salvia #8A9A82 · soporte
+   * Cada escala se genera a partir del color del manual, que queda en el tono 600.
+   */
 
-  /* Tierra / terracota: color secundario (acentos, insignias, detalles) */
-  --color-earth-50: #faf6f1;
-  --color-earth-100: #f2e9dc;
-  --color-earth-200: #e4d0b8;
-  --color-earth-300: #d3b18d;
-  --color-earth-400: #c18e63;
-  --color-earth-500: #b57549;
-  --color-earth-600: #a7623e;
-  --color-earth-700: #8b4d35;
-  --color-earth-800: #714030;
-  --color-earth-900: #5c3629;
+  /* Teal profundo: color principal (botones, enlaces activos, encabezados) */
+  --color-primary-50: #eeefe9;
+  --color-primary-100: #dce2dc;
+  --color-primary-200: #b9c9c3;
+  --color-primary-300: #8daaa4;
+  --color-primary-400: #5d8882;
+  --color-primary-500: #396f69;
+  --color-primary-600: #1f5c56;
+  --color-primary-700: #1b4e49;
+  --color-primary-800: #18423e;
+  --color-primary-900: #153733;
 
-  /* Superficies y texto (neutros cálidos) */
-  --color-surface: #faf9f6;
-  --color-surface-muted: #f3f1ec;
-  --color-ink: #292524;
-  --color-ink-muted: #57534e;
+  /* Barro / clay: acento (insignias, detalles, el punto del isotipo) */
+  --color-earth-50: #f7eee6;
+  --color-earth-100: #f1e1d6;
+  --color-earth-200: #e6c7b6;
+  --color-earth-300: #d8a68e;
+  --color-earth-400: #c98363;
+  --color-earth-500: #be6943;
+  --color-earth-600: #b6552b;
+  --color-earth-700: #974826;
+  --color-earth-800: #7c3c20;
+  --color-earth-900: #63321c;
 
+  /* Salvia: color de soporte (fondos suaves, separadores, estados neutros) */
+  --color-sage-50: #f4f2eb;
+  --color-sage-100: #ebebe2;
+  --color-sage-200: #d9dcd0;
+  --color-sage-300: #c2c9ba;
+  --color-sage-400: #aab4a1;
+  --color-sage-500: #98a58f;
+  --color-sage-600: #8a9a82;
+  --color-sage-700: #72806b;
+  --color-sage-800: #5d6857;
+  --color-sage-900: #495344;
+
+  /* Neutros cálidos: reemplazan la escala "stone" para que bordes y fondos combinen con Arena */
+  --color-stone-50: #f7f3ec;
+  --color-stone-100: #efe9dd;
+  --color-stone-200: #e2d9c9;
+  --color-stone-300: #cfc4b1;
+  --color-stone-400: #a89c89;
+  --color-stone-500: #857a6b;
+  --color-stone-600: #665d52;
+  --color-stone-700: #4d453d;
+  --color-stone-800: #3a332d;
+  --color-stone-900: #2b2420;
+
+  /* Superficies y texto */
+  --color-surface: #eae2d3; /* Arena */
+  --color-surface-muted: #e1d8c6;
+  --color-ink: #2b2420; /* Tinta */
+  --color-ink-muted: #5a5048;
+
+  /* Marca: colores exactos del manual, para el logotipo */
+  --color-brand-teal: #1f5c56;
+  --color-brand-clay: #b6552b;
+  --color-brand-sand: #eae2d3;
+  --color-brand-ink: #2b2420;
+  --color-brand-sage: #8a9a82;
+
+  /* Tipografía: Inter (texto), Space Grotesk 600 (wordmark y UI), Fraunces italic (frases) */
   --font-sans:
-    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+    'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-display:
+    'Space Grotesk Variable', 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, Arial, sans-serif;
+  --font-serif: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
 }
 
 @layer base {
@@ -51,8 +95,22 @@
     @apply bg-surface text-ink min-h-dvh font-sans antialiased;
   }
 
+  /* Encabezados y wordmark en Space Grotesk 600 */
+  h1,
+  h2,
+  h3 {
+    @apply font-display font-semibold tracking-tight;
+  }
+
   /* Contorno de foco visible y consistente para navegación con teclado */
   :focus-visible {
     @apply outline-primary-500 outline-2 outline-offset-2;
   }
+}
+
+/* Frases destacadas en Fraunces italic (ej. «terrenos con historia clara») */
+@utility font-highlight {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
 }
