@@ -1,6 +1,9 @@
 /** Nombre visible de la aplicación. */
 export const APP_NAME = 'TerraValle';
 
+/** Frase de marca del manual del cliente. */
+export const BRAND_TAGLINE = 'Bienes raíces en Puerto Vallarta';
+
 /**
  * URL base de la API. Sale SOLO de la configuración del ambiente (VITE_API_URL):
  *   - npm run dev   → .env.development

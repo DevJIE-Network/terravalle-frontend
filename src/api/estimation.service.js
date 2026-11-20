@@ -1,9 +1,15 @@
 import client from './client';
 
 /**
- * Servicio de estimación orientativa del valor (HU-009).
+ * Servicio de estimación orientativa del valor.
  * Solo funciona sobre propiedades del usuario autenticado.
  */
+
+/**
+ * La estimación puede tardar más que una petición normal (comparables y explicación con IA),
+ * así que se le da más tiempo que los 15 s del cliente.
+ */
+export const ESTIMATION_TIMEOUT_MS = 30000;
 
 /**
  * Solicita una nueva estimación de la propiedad.
@@ -12,7 +18,9 @@ import client from './client';
  * @returns {Promise<{ message: string, estimation: object, publicationPrice: number|null, note: string }>}
  */
 export async function requestEstimation(propertyId) {
-  const { data } = await client.post(`/properties/${propertyId}/estimations`);
+  const { data } = await client.post(`/properties/${propertyId}/estimations`, null, {
+    timeout: ESTIMATION_TIMEOUT_MS,
+  });
   return data;
 }
 
