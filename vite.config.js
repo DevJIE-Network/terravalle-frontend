@@ -15,13 +15,13 @@ export default defineConfig({
       manifest: {
         name: 'TerraValle',
         short_name: 'TerraValle',
-        description: 'Plataforma de bienes raíces con fichas técnicas y estimación de precio con IA',
+        description: 'Bienes raíces en Puerto Vallarta: fichas técnicas de inmuebles y estimación de precio con IA',
         lang: 'es-MX',
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        theme_color: '#047857',
-        background_color: '#ffffff',
+        theme_color: '#1F5C56',
+        background_color: '#EAE2D3',
         icons: [
           { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
