@@ -1,0 +1,1695 @@
+diff --git a/README.md b/README.md
+index 02ec8b1..ec2d3d0 100644
+--- a/README.md
++++ b/README.md
+@@ -114,6 +114,29 @@ src/
+ - **Protegida:** sin sesión redirige a `/login`.
+ - **Solo visitantes:** con sesión iniciada redirige a `/`.
+ 
++### Búsqueda y filtros del catálogo (HU-027)
++
++`/catalogo` incluye una barra de búsqueda y un panel de filtros que consumen la consulta de HU-011 (`GET /properties`). Código en `src/pages/Catalog/` (`CatalogFilters`, `ActiveFilters`), lógica pura en `src/utils/catalogFilters.js` y llamada al API en `getPublicProperties` / `getPublicServiceCatalog` (`src/api/property.service.js`).
++
++| Criterio             | Parámetro de la URL y del API   |
++| -------------------- | ------------------------------- |
++| Texto                | `q`                             |
++| Tipo de inmueble     | `propertyTypeId`                |
++| Rango de precio      | `minPrice`, `maxPrice`          |
++| Ubicación            | `state`, `municipality`         |
++| Superficie (terreno) | `minLandArea`, `maxLandArea`    |
++| Construcción         | `hasConstruction` (`true`/`false`) |
++| Servicios            | `serviceIds` (ids separados por coma; deben cumplirse todos) |
++
++- **Combinables y compartibles:** los criterios se guardan en la dirección (`/catalogo?q=casa&maxPrice=900000`), así que se puede volver con el historial, recargar o compartir la búsqueda. Sin parámetros se muestra el catálogo general.
++- **Etiquetas activas:** cada filtro aplicado aparece como etiqueta que se quita por separado, y "Limpiar filtros" vuelve al catálogo general. Las etiquetas están fuera del panel, por lo que se ven aunque esté plegado.
++- **Móvil:** el panel es una sección desplegable (botón "Filtros", `aria-expanded`); desde `lg` siempre está abierto. Se abre solo si hay un campo con error.
++- **Validación en pantalla:** antes de consultar se valida con las mismas reglas del backend (números ≥ 0 con máximo dos decimales, mínimo ≤ máximo, textos de hasta 120 caracteres). Si hay errores se marcan los campos, se lleva el foco al primero y **no se envía la consulta**. Una URL con criterios inválidos tampoco consulta.
++- **Paginación:** "Cargar más" conserva los criterios; al cambiarlos se reinicia a la página 1.
++- **Sin resultados:** se muestra "No se encontraron propiedades con estos filtros." con un botón para limpiar.
++- **Servicios:** las opciones salen del catálogo público de servicios (`GET /services`). Si no carga, el resto de filtros sigue funcionando.
++- **Ficha:** al abrir una propiedad desde una búsqueda, "Volver al catálogo" regresa a esa misma búsqueda (HU-028).
++
+ ## ¿Dónde trabajo?
+ 
+ | Si vas a crear...                     | Va en...                                                          | Ejemplo                                           |
+diff --git a/src/api/property.service.js b/src/api/property.service.js
+index 1210fba..f188ff5 100644
+--- a/src/api/property.service.js
++++ b/src/api/property.service.js
+@@ -1,15 +1,54 @@
++import { CATALOG_FILTER_KEYS } from '@/utils/catalogFilters';
+ import client from './client';
+ 
+-/** Catálogo público (HU-010): no necesita token ni debe expirar una sesión. */
+-export async function getPublicProperties({ page = 1, limit = 12 } = {}) {
+-  const { data } = await client.get('/properties', {
+-    params: { page, limit },
+-    skipAuth: true,
+-  });
++/**
++ * Catálogo público (HU-010) con búsqueda y filtros opcionales (HU-011).
++ * No necesita token ni debe expirar una sesión.
++ *
++ * Solo se envían los criterios conocidos y con valor: sin filtros la petición es la misma de
++ * siempre ({ page, limit }). `serviceIds` viaja como "1,2,3", que es lo que entiende el backend.
++ *
++ * @param {object} [options]
++ * @param {number} [options.page=1]
++ * @param {number} [options.limit=12]
++ * @param {string} [options.q] Texto en título, municipio o estado.
++ * @param {number} [options.propertyTypeId]
++ * @param {number} [options.minPrice]
++ * @param {number} [options.maxPrice]
++ * @param {string} [options.state]
++ * @param {string} [options.municipality]
++ * @param {number} [options.minLandArea]
++ * @param {number} [options.maxLandArea]
++ * @param {boolean} [options.hasConstruction]
++ * @param {number[]} [options.serviceIds] La propiedad debe tener todos.
++ */
++export async function getPublicProperties({ page = 1, limit = 12, ...filters } = {}) {
++  const params = { page, limit };
++
++  for (const key of CATALOG_FILTER_KEYS) {
++    const value = filters[key];
++    if (value === undefined || value === null || value === '') continue;
++    if (key === 'serviceIds') {
++      if (value.length > 0) params.serviceIds = value.join(',');
++    } else {
++      params[key] = value;
++    }
++  }
++
++  const { data } = await client.get('/properties', { params, skipAuth: true });
+ 
+   return { properties: data.properties ?? [], pagination: data.pagination ?? null };
+ }
+ 
++/**
++ * Catálogo de servicios de TerraValle para el panel de filtros (público, sin token).
++ * @returns {Promise<Array<{ id: number, name: string, description: string|null }>>}
++ */
++export async function getPublicServiceCatalog() {
++  const { data } = await client.get('/services', { skipAuth: true });
++  return data.services ?? [];
++}
++
+ /**
+  * Ficha pública de una propiedad activa. Responde 404 si no existe y 410 si ya no está disponible.
+  * @param {string|number} propertyId
+diff --git a/src/pages/Catalog/ActiveFilters.jsx b/src/pages/Catalog/ActiveFilters.jsx
+new file mode 100644
+index 0000000..6a75512
+--- /dev/null
++++ b/src/pages/Catalog/ActiveFilters.jsx
+@@ -0,0 +1,36 @@
++import { Button } from '@/components/ui';
++
++/**
++ * Etiquetas de los filtros aplicados (siempre visibles, aunque el panel esté plegado en móvil).
++ * Cada una se quita por separado; "Limpiar filtros" vuelve al catálogo general.
++ */
++export default function ActiveFilters({ chips, onRemove, onClear }) {
++  if (chips.length === 0) return null;
++
++  return (
++    <div className="mb-6 flex flex-wrap items-center gap-2">
++      <p className="text-ink-muted text-sm font-medium">Filtros activos:</p>
++      <ul aria-label="Filtros activos" className="flex flex-wrap gap-2">
++        {chips.map((chip) => (
++          <li
++            key={chip.id}
++            className="border-primary-100 bg-primary-50 text-primary-800 flex items-center gap-1 rounded-full border py-1 pr-1 pl-3 text-sm font-medium"
++          >
++            <span>{chip.label}</span>
++            <button
++              type="button"
++              onClick={() => onRemove(chip)}
++              aria-label={`Quitar filtro: ${chip.label}`}
++              className="hover:bg-primary-100 focus-visible:ring-primary-500/40 flex size-7 items-center justify-center rounded-full transition focus-visible:ring-4 focus-visible:outline-none"
++            >
++              <span aria-hidden="true">×</span>
++            </button>
++          </li>
++        ))}
++      </ul>
++      <Button variant="ghost" size="sm" onClick={onClear}>
++        Limpiar filtros
++      </Button>
++    </div>
++  );
++}
+diff --git a/src/pages/Catalog/CatalogFilters.jsx b/src/pages/Catalog/CatalogFilters.jsx
+new file mode 100644
+index 0000000..b4745ac
+--- /dev/null
++++ b/src/pages/Catalog/CatalogFilters.jsx
+@@ -0,0 +1,272 @@
++import { useId, useRef, useState } from 'react';
++import { Button, Input } from '@/components/ui';
++import { PROPERTY_TYPES } from '@/utils/constants';
++import { cn } from '@/utils/helpers';
++import { CATALOG_FILTER_LIMITS, validateCatalogFilters } from '@/utils/catalogFilters';
++
++const FIELD_CLASSES = cn(
++  'text-ink h-12 w-full rounded-xl border bg-white px-4 text-base shadow-xs transition',
++  'focus:ring-4 focus:outline-none',
++);
++
++/** Lista desplegable con el mismo aspecto que `Input`. */
++function SelectField({ label, error, id, children, ...rest }) {
++  const generatedId = useId();
++  const selectId = id ?? generatedId;
++  return (
++    <div className="flex w-full flex-col gap-1.5">
++      <label htmlFor={selectId} className="text-ink text-sm font-medium">
++        {label}
++      </label>
++      <select
++        id={selectId}
++        aria-invalid={Boolean(error)}
++        aria-describedby={error ? `${selectId}-message` : undefined}
++        className={cn(
++          FIELD_CLASSES,
++          error
++            ? 'border-red-500 focus:ring-red-100'
++            : 'focus:border-primary-500 focus:ring-primary-100 border-stone-300 hover:border-stone-400',
++        )}
++        {...rest}
++      >
++        {children}
++      </select>
++      {error && (
++        <p id={`${selectId}-message`} role="alert" className="text-sm text-red-600">
++          {error}
++        </p>
++      )}
++    </div>
++  );
++}
++
++function ServicesField({ services, selected, error, onToggle }) {
++  return (
++    <fieldset className="flex flex-col gap-2">
++      <legend className="text-ink mb-1 text-sm font-medium">
++        Servicios (con todos los marcados)
++      </legend>
++      {services.status === 'loading' && (
++        <p className="text-ink-muted text-sm">Cargando servicios...</p>
++      )}
++      {services.status === 'error' && (
++        <p className="text-ink-muted text-sm">
++          No pudimos cargar los servicios disponibles. Puedes buscar con los demás filtros.
++        </p>
++      )}
++      {services.status === 'ready' && services.items.length === 0 && (
++        <p className="text-ink-muted text-sm">Aún no hay servicios disponibles para filtrar.</p>
++      )}
++      <div className="grid gap-2 sm:grid-cols-2">
++        {services.items.map((service) => (
++          <label
++            key={service.id}
++            className="text-ink flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-stone-200 bg-white px-3 text-sm"
++          >
++            <input
++              type="checkbox"
++              checked={selected.includes(String(service.id))}
++              onChange={() => onToggle(String(service.id))}
++              className="accent-primary-600 size-4"
++            />
++            {service.name}
++          </label>
++        ))}
++      </div>
++      {error && (
++        <p role="alert" className="text-sm text-red-600">
++          {error}
++        </p>
++      )}
++    </fieldset>
++  );
++}
++
++/**
++ * Barra de búsqueda y panel de filtros (HU-027).
++ *
++ * - Un solo formulario: Enter en la barra o "Aplicar filtros" validan TODO antes de buscar (CA4).
++ * - En móvil el panel es una sección desplegable; desde `lg` siempre está abierto.
++ * - Los valores iniciales salen de la URL; el padre lo reinicia (con `key`) cuando la URL cambia.
++ *
++ * @param {object} props
++ * @param {object} props.initialValues Criterios como texto (ver `valuesFromSearchParams`).
++ * @param {Record<string, string>} [props.initialErrors] Errores si la URL traía valores inválidos.
++ * @param {{ status: 'loading'|'ready'|'error', items: Array<{ id: number, name: string }> }} props.services
++ * @param {(filters: object) => void} props.onApply Se llama solo con criterios válidos.
++ */
++export default function CatalogFilters({ initialValues, initialErrors = {}, services, onApply }) {
++  const [values, setValues] = useState(initialValues);
++  const [errors, setErrors] = useState(initialErrors);
++  const [open, setOpen] = useState(Object.keys(initialErrors).length > 0);
++  const formRef = useRef(null);
++  const panelId = useId();
++
++  const setField = (name) => (event) => {
++    setValues((current) => ({ ...current, [name]: event.target.value }));
++    setErrors((current) => (current[name] ? { ...current, [name]: undefined } : current));
++  };
++
++  function toggleService(id) {
++    setValues((current) => ({
++      ...current,
++      serviceIds: current.serviceIds.includes(id)
++        ? current.serviceIds.filter((item) => item !== id)
++        : [...current.serviceIds, id],
++    }));
++    setErrors((current) => ({ ...current, serviceIds: undefined }));
++  }
++
++  function handleSubmit(event) {
++    event.preventDefault();
++    const result = validateCatalogFilters(values);
++    if (Object.keys(result.errors).length > 0) {
++      setErrors(result.errors);
++      setOpen(true);
++      // Espera a que el panel se muestre para llevar el foco al primer campo con error.
++      requestAnimationFrame(() => formRef.current?.querySelector('[aria-invalid="true"]')?.focus());
++      return;
++    }
++    setErrors({});
++    onApply(result.filters);
++  }
++
++  return (
++    <form
++      ref={formRef}
++      role="search"
++      aria-label="Buscar y filtrar propiedades"
++      onSubmit={handleSubmit}
++      noValidate
++      className="mb-6 flex flex-col gap-4 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6"
++    >
++      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
++        <Input
++          label="Buscar propiedades"
++          type="search"
++          name="q"
++          value={values.q}
++          onChange={setField('q')}
++          error={errors.q}
++          placeholder="Título, municipio o estado"
++          maxLength={CATALOG_FILTER_LIMITS.search + 20}
++          autoComplete="off"
++        />
++        <div className="flex gap-2">
++          <Button type="submit" size="lg" className="flex-1 sm:flex-none">
++            Buscar
++          </Button>
++          <Button
++            variant="secondary"
++            size="lg"
++            aria-expanded={open}
++            aria-controls={panelId}
++            onClick={() => setOpen((current) => !current)}
++            className="lg:hidden"
++          >
++            Filtros
++          </Button>
++        </div>
++      </div>
++
++      <div id={panelId} className={cn('flex-col gap-5', open ? 'flex' : 'hidden lg:flex')}>
++        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
++          <SelectField
++            label="Tipo de inmueble"
++            name="propertyTypeId"
++            value={values.propertyTypeId}
++            onChange={setField('propertyTypeId')}
++            error={errors.propertyTypeId}
++          >
++            <option value="">Todos</option>
++            {PROPERTY_TYPES.map((type) => (
++              <option key={type.id} value={String(type.id)}>
++                {type.name}
++              </option>
++            ))}
++          </SelectField>
++
++          <Input
++            label="Estado"
++            name="state"
++            value={values.state}
++            onChange={setField('state')}
++            error={errors.state}
++            placeholder="Ej. Jalisco"
++            autoComplete="off"
++          />
++          <Input
++            label="Municipio"
++            name="municipality"
++            value={values.municipality}
++            onChange={setField('municipality')}
++            error={errors.municipality}
++            placeholder="Ej. Puerto Vallarta"
++            autoComplete="off"
++          />
++
++          <Input
++            label="Precio mínimo (MXN)"
++            name="minPrice"
++            inputMode="decimal"
++            value={values.minPrice}
++            onChange={setField('minPrice')}
++            error={errors.minPrice}
++            placeholder="0"
++          />
++          <Input
++            label="Precio máximo (MXN)"
++            name="maxPrice"
++            inputMode="decimal"
++            value={values.maxPrice}
++            onChange={setField('maxPrice')}
++            error={errors.maxPrice}
++          />
++          <SelectField
++            label="Construcción"
++            name="hasConstruction"
++            value={values.hasConstruction}
++            onChange={setField('hasConstruction')}
++            error={errors.hasConstruction}
++          >
++            <option value="">Cualquiera</option>
++            <option value="true">Con construcción</option>
++            <option value="false">Sin construcción</option>
++          </SelectField>
++
++          <Input
++            label="Superficie mínima (m²)"
++            name="minLandArea"
++            inputMode="decimal"
++            value={values.minLandArea}
++            onChange={setField('minLandArea')}
++            error={errors.minLandArea}
++            placeholder="0"
++          />
++          <Input
++            label="Superficie máxima (m²)"
++            name="maxLandArea"
++            inputMode="decimal"
++            value={values.maxLandArea}
++            onChange={setField('maxLandArea')}
++            error={errors.maxLandArea}
++          />
++        </div>
++
++        <ServicesField
++          services={services}
++          selected={values.serviceIds}
++          error={errors.serviceIds}
++          onToggle={toggleService}
++        />
++
++        <div className="flex sm:justify-end">
++          <Button type="submit" className="w-full sm:w-auto">
++            Aplicar filtros
++          </Button>
++        </div>
++      </div>
++    </form>
++  );
++}
+diff --git a/src/pages/Catalog/CatalogPage.jsx b/src/pages/Catalog/CatalogPage.jsx
+index aa63a65..9ba1b59 100644
+--- a/src/pages/Catalog/CatalogPage.jsx
++++ b/src/pages/Catalog/CatalogPage.jsx
+@@ -1,22 +1,77 @@
+-import { useEffect, useState } from 'react';
+-import { getPublicProperties } from '@/api';
++import { useEffect, useMemo, useState } from 'react';
++import { useSearchParams } from 'react-router-dom';
++import { getPublicProperties, getPublicServiceCatalog } from '@/api';
+ import { PropertyCardSkeleton, PublicPropertyCard } from '@/components/property';
+ import { Button, EmptyState, ErrorState, PageHeader } from '@/components/ui';
++import {
++  describeActiveFilters,
++  removeFilter,
++  toSearchParams,
++  validateCatalogFilters,
++  valuesFromSearchParams,
++} from '@/utils/catalogFilters';
+ import { appendUniqueProperties, PUBLIC_PROPERTIES_PAGE_SIZE } from '@/utils/publicProperties';
++import ActiveFilters from './ActiveFilters';
++import CatalogFilters from './CatalogFilters';
+ 
+ const GRID_CLASSES = 'grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3';
+ 
++/**
++ * Catálogo público (HU-026) con búsqueda y filtros (HU-027).
++ * Los criterios viven en la URL (/catalogo?q=casa&maxPrice=900000): se puede volver a la búsqueda,
++ * compartirla y recargarla. Cada cambio de criterios reinicia la paginación.
++ */
+ export default function CatalogPage() {
++  const [searchParams, setSearchParams] = useSearchParams();
++  const searchString = searchParams.toString();
++
++  // Criterios de la URL ya validados. Con errores (URL editada a mano) no se envía la consulta.
++  const criteria = useMemo(() => {
++    const values = valuesFromSearchParams(new URLSearchParams(searchString));
++    const { filters, errors } = validateCatalogFilters(values);
++    const invalid = Object.keys(errors).length > 0;
++    return {
++      values,
++      filters,
++      errors,
++      invalid,
++      key: invalid ? `invalid:${searchString}` : toSearchParams(filters).toString(),
++    };
++  }, [searchString]);
++
+   const [properties, setProperties] = useState([]);
+   const [pagination, setPagination] = useState(null);
+   const [page, setPage] = useState(1);
+   const [loadAttempt, setLoadAttempt] = useState(0);
+-  const [status, setStatus] = useState('loading');
++  const [status, setStatus] = useState(criteria.invalid ? 'invalid' : 'loading');
+   const [loadError, setLoadError] = useState('');
++  const [services, setServices] = useState({ status: 'loading', items: [] });
++
++  // Al cambiar los criterios se vuelve a la primera página y se descarta la lista anterior.
++  const [appliedKey, setAppliedKey] = useState(criteria.key);
++  if (appliedKey !== criteria.key) {
++    setAppliedKey(criteria.key);
++    setPage(1);
++    setProperties([]);
++    setPagination(null);
++    setLoadError('');
++    setStatus(criteria.invalid ? 'invalid' : 'loading');
++  }
++
++  useEffect(() => {
++    let active = true;
++    getPublicServiceCatalog()
++      .then((items) => active && setServices({ status: 'ready', items }))
++      .catch(() => active && setServices({ status: 'error', items: [] }));
++    return () => {
++      active = false;
++    };
++  }, []);
+ 
+   useEffect(() => {
++    if (criteria.invalid) return undefined;
+     let active = true;
+-    getPublicProperties({ page, limit: PUBLIC_PROPERTIES_PAGE_SIZE })
++    getPublicProperties({ page, limit: PUBLIC_PROPERTIES_PAGE_SIZE, ...criteria.filters })
+       .then((result) => {
+         if (!active) return;
+         setProperties((current) =>
+@@ -36,7 +91,7 @@ export default function CatalogPage() {
+     return () => {
+       active = false;
+     };
+-  }, [page, loadAttempt]);
++  }, [page, loadAttempt, criteria]);
+ 
+   function loadMore() {
+     if (status !== 'ready' || !pagination?.hasNextPage) return;
+@@ -51,6 +106,12 @@ export default function CatalogPage() {
+     setLoadAttempt((attempt) => attempt + 1);
+   }
+ 
++  function applyFilters(filters) {
++    setSearchParams(toSearchParams(filters));
++  }
++
++  const chips = criteria.invalid ? [] : describeActiveFilters(criteria.filters, services.items);
++  const hasFilters = chips.length > 0;
+   const hasProperties = properties.length > 0;
+ 
+   return (
+@@ -60,10 +121,25 @@ export default function CatalogPage() {
+         description="Encuentra un lugar para tu próximo proyecto. Explora terrenos y viviendas en TerraValle."
+       />
+ 
++      <CatalogFilters
++        key={criteria.key}
++        initialValues={criteria.values}
++        initialErrors={criteria.errors}
++        services={services}
++        onApply={applyFilters}
++      />
++
++      <ActiveFilters
++        chips={chips}
++        onRemove={(chip) => applyFilters(removeFilter(criteria.filters, chip))}
++        onClear={() => applyFilters({})}
++      />
++
+       <p role="status" className="sr-only">
+         {status === 'loading' && 'Cargando propiedades...'}
+         {status === 'loadingMore' && 'Cargando más propiedades...'}
+         {status === 'ready' && `${properties.length} propiedades cargadas.`}
++        {status === 'invalid' && 'Corrige los criterios de búsqueda marcados.'}
+       </p>
+ 
+       {status === 'loading' && (
+@@ -78,7 +154,19 @@ export default function CatalogPage() {
+         <ErrorState title="No pudimos cargar el catálogo" message={loadError} onRetry={retry} />
+       )}
+ 
+-      {status === 'ready' && !hasProperties && (
++      {status === 'ready' && !hasProperties && hasFilters && (
++        <EmptyState
++          title="No se encontraron propiedades con estos filtros."
++          description="Prueba quitando o ajustando algunos criterios para ver más opciones."
++          action={
++            <Button variant="secondary" onClick={() => applyFilters({})}>
++              Limpiar filtros
++            </Button>
++          }
++        />
++      )}
++
++      {status === 'ready' && !hasProperties && !hasFilters && (
+         <EmptyState
+           title="No hay propiedades disponibles en este momento."
+           description="Vuelve pronto para descubrir nuevas oportunidades."
+@@ -119,7 +207,9 @@ export default function CatalogPage() {
+               </Button>
+             ) : (
+               <p className="text-ink-muted text-center text-sm">
+-                Has visto todas las propiedades disponibles.
++                {hasFilters
++                  ? 'Has visto todas las propiedades que cumplen tus filtros.'
++                  : 'Has visto todas las propiedades disponibles.'}
+               </p>
+             )}
+           </div>
+diff --git a/src/utils/catalogFilters.js b/src/utils/catalogFilters.js
+new file mode 100644
+index 0000000..492fd6f
+--- /dev/null
++++ b/src/utils/catalogFilters.js
+@@ -0,0 +1,274 @@
++/*
++ * HU-027 · Búsqueda y filtros del catálogo: lógica pura (sin React) para poder probarla por separado.
++ *
++ * Flujo: los criterios viven en la URL (?q=...&minPrice=...). De ahí salen "valores" (texto tal cual
++ * se escribió) que se validan antes de consultar y se convierten en "filtros" (tipos reales) con el
++ * mismo contrato que el backend de HU-011.
++ */
++import { PROPERTY_TYPES } from './constants';
++import { formatPrice } from './helpers';
++
++/** Mismos límites que valida el backend (HU-011). */
++export const CATALOG_FILTER_LIMITS = {
++  price: 999_999_999_999.99,
++  area: 10_000_000,
++  text: 120,
++  search: 100,
++  services: 30,
++};
++
++/** Nombres de los parámetros: son los de la URL y los de la consulta del backend. */
++export const CATALOG_FILTER_KEYS = [
++  'q',
++  'propertyTypeId',
++  'minPrice',
++  'maxPrice',
++  'state',
++  'municipality',
++  'minLandArea',
++  'maxLandArea',
++  'hasConstruction',
++  'serviceIds',
++];
++
++/** Valores de un formulario sin criterios (todo texto, como lo escribe el usuario). */
++export const EMPTY_FILTER_VALUES = Object.freeze({
++  q: '',
++  propertyTypeId: '',
++  minPrice: '',
++  maxPrice: '',
++  state: '',
++  municipality: '',
++  minLandArea: '',
++  maxLandArea: '',
++  hasConstruction: '',
++  serviceIds: [],
++});
++
++const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/;
++const ID_PATTERN = /^\d+$/;
++
++const numberFormat = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
++
++const cleanText = (value) =>
++  String(value ?? '')
++    .trim()
++    .replaceAll(/\s+/g, ' ');
++
++/** Lee los criterios de la URL como texto. Ignora los parámetros que no son del catálogo. */
++export function valuesFromSearchParams(searchParams) {
++  const read = (key) => (searchParams.get(key) ?? '').trim();
++  return {
++    q: read('q'),
++    propertyTypeId: read('propertyTypeId'),
++    minPrice: read('minPrice'),
++    maxPrice: read('maxPrice'),
++    state: read('state'),
++    municipality: read('municipality'),
++    minLandArea: read('minLandArea'),
++    maxLandArea: read('maxLandArea'),
++    hasConstruction: read('hasConstruction'),
++    serviceIds: searchParams
++      .getAll('serviceIds')
++      .flatMap((item) => item.split(','))
++      .map((item) => item.trim())
++      .filter(Boolean),
++  };
++}
++
++function parseAmount(raw, max) {
++  const text = String(raw ?? '').trim();
++  if (text === '') return { empty: true };
++  if (!AMOUNT_PATTERN.test(text)) {
++    return { error: 'Ingresa un número mayor o igual a 0, con máximo dos decimales.' };
++  }
++  const value = Number(text);
++  if (value > max) return { error: `No puede ser mayor que ${numberFormat.format(max)}.` };
++  return { value };
++}
++
++const RANGES = [
++  {
++    min: 'minPrice',
++    max: 'maxPrice',
++    limit: CATALOG_FILTER_LIMITS.price,
++    minMessage: 'El precio mínimo no puede ser mayor que el máximo.',
++    maxMessage: 'El precio máximo no puede ser menor que el mínimo.',
++  },
++  {
++    min: 'minLandArea',
++    max: 'maxLandArea',
++    limit: CATALOG_FILTER_LIMITS.area,
++    minMessage: 'La superficie mínima no puede ser mayor que la máxima.',
++    maxMessage: 'La superficie máxima no puede ser menor que la mínima.',
++  },
++];
++
++function validateRange(range, values, filters, errors) {
++  const parsed = { min: parseAmount(values[range.min], range.limit) };
++  parsed.max = parseAmount(values[range.max], range.limit);
++
++  for (const side of ['min', 'max']) {
++    const key = range[side];
++    if (parsed[side].error) errors[key] = parsed[side].error;
++    else if (!parsed[side].empty) filters[key] = parsed[side].value;
++  }
++
++  // Regla de negocio: el mínimo no puede ser mayor que el máximo.
++  if (filters[range.min] !== undefined && filters[range.max] !== undefined) {
++    if (filters[range.min] > filters[range.max]) {
++      errors[range.min] = range.minMessage;
++      errors[range.max] = range.maxMessage;
++      delete filters[range.min];
++      delete filters[range.max];
++    }
++  }
++}
++
++function validateText(values, key, limit, label, filters, errors) {
++  const text = cleanText(values[key]);
++  if (text.length > limit) errors[key] = `${label} no puede superar ${limit} caracteres.`;
++  else if (text) filters[key] = text;
++}
++
++function validateServices(values, filters, errors) {
++  const raw = (values.serviceIds ?? []).map((item) => String(item).trim()).filter(Boolean);
++  if (raw.length === 0) return;
++  if (!raw.every((item) => ID_PATTERN.test(item) && Number(item) > 0)) {
++    errors.serviceIds = 'Selecciona servicios válidos del catálogo.';
++    return;
++  }
++  const ids = [...new Set(raw.map(Number))];
++  if (ids.length > CATALOG_FILTER_LIMITS.services) {
++    errors.serviceIds = `Puedes filtrar por máximo ${CATALOG_FILTER_LIMITS.services} servicios.`;
++    return;
++  }
++  filters.serviceIds = ids;
++}
++
++/**
++ * Valida los criterios ANTES de consultar (CA4).
++ * @param {Partial<typeof EMPTY_FILTER_VALUES>} values Criterios como texto.
++ * @returns {{ filters: object, errors: Record<string, string> }}
++ *   `filters` solo trae los criterios con valor y ya con su tipo (números, booleano, ids).
++ *   `errors` tiene un mensaje por campo inválido; con errores no se debe enviar la consulta.
++ */
++export function validateCatalogFilters(values) {
++  const v = { ...EMPTY_FILTER_VALUES, ...values };
++  const filters = {};
++  const errors = {};
++
++  validateText(v, 'q', CATALOG_FILTER_LIMITS.search, 'La búsqueda', filters, errors);
++
++  const typeId = String(v.propertyTypeId ?? '').trim();
++  if (typeId !== '') {
++    if (PROPERTY_TYPES.some((type) => String(type.id) === typeId)) {
++      filters.propertyTypeId = Number(typeId);
++    } else {
++      errors.propertyTypeId = 'Selecciona un tipo de inmueble válido.';
++    }
++  }
++
++  validateRange(RANGES[0], v, filters, errors);
++  validateText(v, 'state', CATALOG_FILTER_LIMITS.text, 'El estado', filters, errors);
++  validateText(v, 'municipality', CATALOG_FILTER_LIMITS.text, 'El municipio', filters, errors);
++  validateRange(RANGES[1], v, filters, errors);
++
++  const construction = String(v.hasConstruction ?? '').trim();
++  if (construction === 'true' || construction === 'false') {
++    filters.hasConstruction = construction === 'true';
++  } else if (construction !== '') {
++    errors.hasConstruction = 'Selecciona una opción válida.';
++  }
++
++  validateServices(v, filters, errors);
++
++  return { filters, errors };
++}
++
++/** Criterios → parámetros de la URL, en orden estable (misma búsqueda = misma dirección). */
++export function toSearchParams(filters) {
++  const params = new URLSearchParams();
++  for (const key of CATALOG_FILTER_KEYS) {
++    const value = filters[key];
++    if (value === undefined || value === null || value === '') continue;
++    if (key === 'serviceIds') {
++      if (value.length > 0) params.set(key, value.join(','));
++    } else {
++      params.set(key, String(value));
++    }
++  }
++  return params;
++}
++
++const formatArea = (value) => `${numberFormat.format(value)} m²`;
++
++function rangeLabel(name, min, max, format) {
++  if (min !== undefined && max !== undefined) return `${name}: ${format(min)} – ${format(max)}`;
++  if (min !== undefined) return `${name}: desde ${format(min)}`;
++  return `${name}: hasta ${format(max)}`;
++}
++
++/**
++ * Etiquetas de los filtros activos (HU-027: siempre visibles y removibles uno por uno).
++ * @param {object} filters
++ * @param {Array<{ id: number, name: string }>} [services] Catálogo, para mostrar el nombre.
++ * @returns {Array<{ id: string, label: string, keys: string[], serviceId?: number }>}
++ */
++export function describeActiveFilters(filters, services = []) {
++  const chips = [];
++  const add = (id, label, keys, extra) => chips.push({ id, label, keys, ...extra });
++
++  if (filters.q) add('q', `Búsqueda: “${filters.q}”`, ['q']);
++
++  if (filters.propertyTypeId !== undefined) {
++    const type = PROPERTY_TYPES.find((item) => item.id === filters.propertyTypeId);
++    add('propertyTypeId', `Tipo: ${type?.name ?? filters.propertyTypeId}`, ['propertyTypeId']);
++  }
++
++  if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
++    add('price', rangeLabel('Precio', filters.minPrice, filters.maxPrice, formatPrice), [
++      'minPrice',
++      'maxPrice',
++    ]);
++  }
++
++  if (filters.state) add('state', `Estado: ${filters.state}`, ['state']);
++  if (filters.municipality)
++    add('municipality', `Municipio: ${filters.municipality}`, ['municipality']);
++
++  if (filters.minLandArea !== undefined || filters.maxLandArea !== undefined) {
++    add(
++      'landArea',
++      rangeLabel('Superficie', filters.minLandArea, filters.maxLandArea, formatArea),
++      ['minLandArea', 'maxLandArea'],
++    );
++  }
++
++  if (filters.hasConstruction !== undefined) {
++    add('hasConstruction', filters.hasConstruction ? 'Con construcción' : 'Sin construcción', [
++      'hasConstruction',
++    ]);
++  }
++
++  for (const serviceId of filters.serviceIds ?? []) {
++    const service = services.find((item) => Number(item.id) === serviceId);
++    add(`service-${serviceId}`, `Servicio: ${service?.name ?? `#${serviceId}`}`, ['serviceIds'], {
++      serviceId,
++    });
++  }
++
++  return chips;
++}
++
++/** Criterios sin el que representa la etiqueta (sin modificar el original). */
++export function removeFilter(filters, chip) {
++  const next = { ...filters };
++  if (chip.serviceId === undefined) {
++    for (const key of chip.keys) delete next[key];
++    return next;
++  }
++  next.serviceIds = (filters.serviceIds ?? []).filter((id) => id !== chip.serviceId);
++  if (next.serviceIds.length === 0) delete next.serviceIds;
++  return next;
++}
+diff --git a/tests/CatalogPage.test.jsx b/tests/CatalogPage.test.jsx
+index 00095ea..b5dc373 100644
+--- a/tests/CatalogPage.test.jsx
++++ b/tests/CatalogPage.test.jsx
+@@ -8,6 +8,7 @@ import CatalogPage from '@/pages/Catalog/CatalogPage';
+ vi.mock('@/api', async (importOriginal) => ({
+   ...(await importOriginal()),
+   getPublicProperties: vi.fn(),
++  getPublicServiceCatalog: vi.fn(),
+ }));
+ 
+ const HOUSE = {
+@@ -72,6 +73,7 @@ const titles = () =>
+   screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+ 
+ beforeEach(() => {
++  api.getPublicServiceCatalog.mockReset().mockResolvedValue([]);
+   api.getPublicProperties.mockReset().mockResolvedValue(result([HOUSE, LAND]));
+ });
+ 
+@@ -258,7 +260,11 @@ describe('HU-026 · paginación incremental', () => {
+     renderPage();
+     await screen.findByRole('article');
+     await user.click(screen.getByRole('button', { name: 'Cargar más propiedades' }));
+-    await waitFor(() => expect(screen.queryByRole('button')).not.toBeInTheDocument());
++    await waitFor(() =>
++      expect(
++        screen.queryByRole('button', { name: /Cargar más propiedades/ }),
++      ).not.toBeInTheDocument(),
++    );
+     expect(titles()).toEqual([HOUSE.title]);
+   });
+ 
+diff --git a/tests/CatalogRouting.test.jsx b/tests/CatalogRouting.test.jsx
+index d4b2fbd..3fe12c9 100644
+--- a/tests/CatalogRouting.test.jsx
++++ b/tests/CatalogRouting.test.jsx
+@@ -8,6 +8,7 @@ import { ROUTES, STORAGE_KEYS } from '@/utils/constants';
+ vi.mock('@/api', async (importOriginal) => ({
+   ...(await importOriginal()),
+   getPublicProperties: vi.fn(),
++  getPublicServiceCatalog: vi.fn().mockResolvedValue([]),
+   getPublicProperty: vi.fn(),
+ }));
+ 
+diff --git a/tests/CatalogSearch.test.jsx b/tests/CatalogSearch.test.jsx
+new file mode 100644
+index 0000000..c5f0114
+--- /dev/null
++++ b/tests/CatalogSearch.test.jsx
+@@ -0,0 +1,471 @@
++import { act, render, screen, waitFor, within } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import * as api from '@/api';
++import CatalogPage from '@/pages/Catalog/CatalogPage';
++
++vi.mock('@/api', async (importOriginal) => ({
++  ...(await importOriginal()),
++  getPublicProperties: vi.fn(),
++  getPublicServiceCatalog: vi.fn(),
++}));
++
++const HOUSE = {
++  id: 9,
++  title: 'Casa con jardín en Tula',
++  propertyType: { id: 2, name: 'Casa' },
++  publicationPrice: 1500000,
++  location: { municipality: 'Tula de Allende', state: 'Hidalgo' },
++  landArea: 200,
++  hasConstruction: true,
++  builtArea: 120,
++};
++const LAND = {
++  id: 2,
++  title: 'Terreno en Tepeji',
++  propertyType: { id: 1, name: 'Terreno' },
++  publicationPrice: 500000,
++  location: { municipality: 'Tepeji del Río', state: 'Hidalgo' },
++  landArea: 300,
++  hasConstruction: false,
++};
++const NEXT = { ...LAND, id: 7, title: 'Terreno junto al valle' };
++
++const SERVICES = [
++  { id: 1, name: 'Agua potable', description: null },
++  { id: 2, name: 'Electricidad', description: null },
++];
++
++function result(properties, { page = 1, hasNextPage = false, total = properties.length } = {}) {
++  return {
++    properties,
++    pagination: {
++      page,
++      limit: 12,
++      total,
++      totalPages: hasNextPage ? page + 1 : Math.max(page, 1),
++      hasNextPage,
++      hasPreviousPage: page > 1,
++    },
++  };
++}
++
++function LocationProbe() {
++  const location = useLocation();
++  return <p data-testid="location">{`${location.pathname}${location.search}`}</p>;
++}
++
++function renderCatalog(url = '/catalogo') {
++  const router = createMemoryRouter(
++    [
++      {
++        path: '/catalogo',
++        element: (
++          <>
++            <CatalogPage />
++            <LocationProbe />
++          </>
++        ),
++      },
++    ],
++    { initialEntries: [url] },
++  );
++  render(<RouterProvider router={router} />);
++  return router;
++}
++
++const lastCall = () => api.getPublicProperties.mock.calls.at(-1)[0];
++const currentUrl = () => screen.getByTestId('location').textContent;
++const field = (name) => screen.getByLabelText(name);
++const titles = () =>
++  screen.queryAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
++const chipList = () => screen.queryByRole('list', { name: 'Filtros activos' });
++const chipLabels = () =>
++  within(chipList())
++    .getAllByRole('listitem')
++    .map((item) => item.textContent.replace('×', ''));
++
++beforeEach(() => {
++  api.getPublicServiceCatalog.mockReset().mockResolvedValue(SERVICES);
++  api.getPublicProperties.mockReset().mockResolvedValue(result([HOUSE, LAND]));
++});
++
++describe('HU-027 · barra de búsqueda y panel de filtros', () => {
++  it('muestra la barra, el panel con todos los criterios y los servicios del catálogo', async () => {
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++
++    expect(
++      screen.getByRole('search', { name: 'Buscar y filtrar propiedades' }),
++    ).toBeInTheDocument();
++    for (const label of [
++      'Buscar propiedades',
++      'Tipo de inmueble',
++      'Estado',
++      'Municipio',
++      'Precio mínimo (MXN)',
++      'Precio máximo (MXN)',
++      'Construcción',
++      'Superficie mínima (m²)',
++      'Superficie máxima (m²)',
++    ]) {
++      expect(field(label)).toBeInTheDocument();
++    }
++    expect(await screen.findByRole('checkbox', { name: 'Agua potable' })).toBeInTheDocument();
++    expect(screen.getByRole('checkbox', { name: 'Electricidad' })).toBeInTheDocument();
++    expect(api.getPublicServiceCatalog).toHaveBeenCalledTimes(1);
++    // Sin criterios: catálogo general, igual que HU-026, y sin etiquetas ni "Limpiar filtros".
++    expect(api.getPublicProperties).toHaveBeenCalledExactlyOnceWith({ page: 1, limit: 12 });
++    expect(chipList()).not.toBeInTheDocument();
++    expect(screen.queryByRole('button', { name: 'Limpiar filtros' })).not.toBeInTheDocument();
++  });
++
++  it('CA1: combina filtros, consulta con todos, muestra las etiquetas y refleja la URL', async () => {
++    const user = userEvent.setup();
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++    await screen.findByRole('checkbox', { name: 'Agua potable' });
++    api.getPublicProperties.mockResolvedValue(result([LAND]));
++
++    await user.type(field('Buscar propiedades'), 'terreno');
++    await user.selectOptions(field('Tipo de inmueble'), 'Terreno');
++    await user.type(field('Precio máximo (MXN)'), '600000');
++    await user.type(field('Estado'), 'Hidalgo');
++    await user.type(field('Superficie mínima (m²)'), '250');
++    await user.selectOptions(field('Construcción'), 'Sin construcción');
++    await user.click(screen.getByRole('checkbox', { name: 'Agua potable' }));
++    await user.click(screen.getByRole('checkbox', { name: 'Electricidad' }));
++    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
++
++    await waitFor(() => expect(titles()).toEqual([LAND.title]));
++    expect(lastCall()).toEqual({
++      page: 1,
++      limit: 12,
++      q: 'terreno',
++      propertyTypeId: 1,
++      maxPrice: 600000,
++      state: 'Hidalgo',
++      minLandArea: 250,
++      hasConstruction: false,
++      serviceIds: [1, 2],
++    });
++    expect(chipLabels()).toEqual([
++      'Búsqueda: “terreno”',
++      'Tipo: Terreno',
++      'Precio: hasta $600,000',
++      'Estado: Hidalgo',
++      'Superficie: desde 250 m²',
++      'Sin construcción',
++      'Servicio: Agua potable',
++      'Servicio: Electricidad',
++    ]);
++    expect(currentUrl()).toBe(
++      '/catalogo?q=terreno&propertyTypeId=1&maxPrice=600000&state=Hidalgo&minLandArea=250&hasConstruction=false&serviceIds=1%2C2',
++    );
++  });
++
++  it('Enter en la barra de búsqueda también aplica la búsqueda', async () => {
++    const user = userEvent.setup();
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++
++    await user.type(field('Buscar propiedades'), 'tula{Enter}');
++
++    await waitFor(() => expect(lastCall()).toEqual({ page: 1, limit: 12, q: 'tula' }));
++    expect(currentUrl()).toBe('/catalogo?q=tula');
++  });
++
++  it('CA2: sin resultados explica que no hay coincidencias y ofrece limpiar los filtros', async () => {
++    const user = userEvent.setup();
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++    api.getPublicProperties.mockResolvedValue(result([], { total: 0 }));
++
++    await user.selectOptions(field('Tipo de inmueble'), 'Departamento');
++    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
++
++    expect(
++      await screen.findByText('No se encontraron propiedades con estos filtros.'),
++    ).toBeInTheDocument();
++    expect(screen.queryByText('No hay propiedades disponibles en este momento.')).toBeNull();
++    // No es un error: no aparece el estado de error del catálogo.
++    expect(screen.queryByText('No pudimos cargar el catálogo')).not.toBeInTheDocument();
++    expect(chipLabels()).toEqual(['Tipo: Departamento']);
++
++    api.getPublicProperties.mockResolvedValue(result([HOUSE, LAND]));
++    const empty = screen.getByText(
++      'No se encontraron propiedades con estos filtros.',
++    ).parentElement;
++    await user.click(within(empty).getByRole('button', { name: 'Limpiar filtros' }));
++    await screen.findByRole('article', { name: HOUSE.title });
++    expect(currentUrl()).toBe('/catalogo');
++  });
++
++  it('CA3: limpiar filtros vuelve al catálogo general, sin etiquetas y con los campos vacíos', async () => {
++    const user = userEvent.setup();
++    renderCatalog('/catalogo?q=casa&maxPrice=900000');
++    await screen.findByRole('article', { name: HOUSE.title });
++    expect(field('Precio máximo (MXN)')).toHaveValue('900000');
++    api.getPublicProperties.mockClear();
++
++    await user.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
++
++    await waitFor(() =>
++      expect(api.getPublicProperties).toHaveBeenCalledExactlyOnceWith({ page: 1, limit: 12 }),
++    );
++    expect(currentUrl()).toBe('/catalogo');
++    expect(chipList()).not.toBeInTheDocument();
++    expect(field('Buscar propiedades')).toHaveValue('');
++    expect(field('Precio máximo (MXN)')).toHaveValue('');
++    expect(titles()).toEqual([HOUSE.title, LAND.title]);
++  });
++
++  it('quita un filtro a la vez desde su etiqueta y conserva los demás', async () => {
++    const user = userEvent.setup();
++    renderCatalog('/catalogo?q=casa&state=Hidalgo&minPrice=100&maxPrice=900');
++    await screen.findByRole('article', { name: HOUSE.title });
++    api.getPublicProperties.mockClear();
++
++    await user.click(screen.getByRole('button', { name: 'Quitar filtro: Precio: $100 – $900' }));
++
++    await waitFor(() =>
++      expect(lastCall()).toEqual({ page: 1, limit: 12, q: 'casa', state: 'Hidalgo' }),
++    );
++    expect(chipLabels()).toEqual(['Búsqueda: “casa”', 'Estado: Hidalgo']);
++    expect(currentUrl()).toBe('/catalogo?q=casa&state=Hidalgo');
++    expect(field('Precio mínimo (MXN)')).toHaveValue('');
++  });
++
++  it('CA4: un mínimo mayor que el máximo marca los campos, pide corregir y no envía la consulta', async () => {
++    const user = userEvent.setup();
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++    api.getPublicProperties.mockClear();
++
++    await user.type(field('Precio mínimo (MXN)'), '900000');
++    await user.type(field('Precio máximo (MXN)'), '100000');
++    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
++
++    expect(field('Precio mínimo (MXN)')).toHaveAttribute('aria-invalid', 'true');
++    expect(field('Precio máximo (MXN)')).toHaveAttribute('aria-invalid', 'true');
++    expect(
++      screen.getByText('El precio mínimo no puede ser mayor que el máximo.'),
++    ).toBeInTheDocument();
++    expect(
++      screen.getByText('El precio máximo no puede ser menor que el mínimo.'),
++    ).toBeInTheDocument();
++    await waitFor(() => expect(field('Precio mínimo (MXN)')).toHaveFocus());
++    expect(api.getPublicProperties).not.toHaveBeenCalled();
++    expect(currentUrl()).toBe('/catalogo');
++
++    // Al corregir, el error del campo desaparece y la búsqueda se envía.
++    await user.clear(field('Precio mínimo (MXN)'));
++    await user.type(field('Precio mínimo (MXN)'), '50000');
++    expect(field('Precio mínimo (MXN)')).not.toHaveAttribute('aria-invalid', 'true');
++    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
++    await waitFor(() =>
++      expect(lastCall()).toEqual({ page: 1, limit: 12, minPrice: 50000, maxPrice: 100000 }),
++    );
++  });
++
++  it('CA4: valores no numéricos o negativos tampoco se envían', async () => {
++    const user = userEvent.setup();
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++    api.getPublicProperties.mockClear();
++
++    await user.type(field('Superficie mínima (m²)'), '-5');
++    await user.type(field('Precio máximo (MXN)'), 'mucho');
++    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
++
++    expect(field('Superficie mínima (m²)')).toHaveAttribute('aria-invalid', 'true');
++    expect(field('Precio máximo (MXN)')).toHaveAttribute('aria-invalid', 'true');
++    expect(api.getPublicProperties).not.toHaveBeenCalled();
++  });
++
++  it('abre la búsqueda guardada en la URL: consulta con esos criterios y precarga el formulario', async () => {
++    renderCatalog(
++      '/catalogo?q=casa&propertyTypeId=2&maxPrice=2000000&hasConstruction=true&serviceIds=1',
++    );
++    await screen.findByRole('article', { name: HOUSE.title });
++
++    expect(api.getPublicProperties).toHaveBeenCalledExactlyOnceWith({
++      page: 1,
++      limit: 12,
++      q: 'casa',
++      propertyTypeId: 2,
++      maxPrice: 2000000,
++      hasConstruction: true,
++      serviceIds: [1],
++    });
++    expect(field('Buscar propiedades')).toHaveValue('casa');
++    expect(field('Tipo de inmueble')).toHaveValue('2');
++    expect(field('Construcción')).toHaveValue('true');
++    expect(await screen.findByRole('checkbox', { name: 'Agua potable' })).toBeChecked();
++    expect(screen.getByRole('checkbox', { name: 'Electricidad' })).not.toBeChecked();
++    expect(chipLabels()).toContain('Servicio: Agua potable');
++  });
++
++  it('una URL con criterios inválidos no consulta y marca los campos a corregir', async () => {
++    renderCatalog('/catalogo?minPrice=900&maxPrice=100&propertyTypeId=99');
++    await screen.findByText('El precio mínimo no puede ser mayor que el máximo.');
++
++    expect(api.getPublicProperties).not.toHaveBeenCalled();
++    expect(field('Precio mínimo (MXN)')).toHaveAttribute('aria-invalid', 'true');
++    expect(field('Tipo de inmueble')).toHaveAttribute('aria-invalid', 'true');
++    expect(screen.queryByRole('article')).not.toBeInTheDocument();
++    expect(chipList()).not.toBeInTheDocument();
++    expect(screen.getByRole('status')).toHaveTextContent(
++      'Corrige los criterios de búsqueda marcados.',
++    );
++  });
++
++  it('al cambiar los criterios reinicia la paginación y reemplaza la lista', async () => {
++    const user = userEvent.setup();
++    api.getPublicProperties
++      .mockReset()
++      .mockResolvedValueOnce(result([HOUSE], { hasNextPage: true, total: 2 }))
++      .mockResolvedValueOnce(result([LAND], { page: 2, total: 2 }));
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++    await user.click(screen.getByRole('button', { name: 'Cargar más propiedades' }));
++    await waitFor(() => expect(titles()).toEqual([HOUSE.title, LAND.title]));
++    expect(lastCall()).toEqual({ page: 2, limit: 12 });
++
++    api.getPublicProperties.mockResolvedValue(result([NEXT], { total: 1 }));
++    await user.type(field('Buscar propiedades'), 'valle');
++    await user.click(screen.getByRole('button', { name: 'Buscar' }));
++
++    await waitFor(() => expect(titles()).toEqual([NEXT.title]));
++    expect(lastCall()).toEqual({ page: 1, limit: 12, q: 'valle' });
++    expect(
++      screen.queryByRole('button', { name: 'Cargar más propiedades' }),
++    ).not.toBeInTheDocument();
++  });
++
++  it('mantiene la paginación al filtrar: "cargar más" conserva los criterios', async () => {
++    const user = userEvent.setup();
++    api.getPublicProperties
++      .mockReset()
++      .mockResolvedValueOnce(result([HOUSE], { hasNextPage: true, total: 2 }))
++      .mockResolvedValueOnce(result([NEXT], { page: 2, total: 2 }));
++    renderCatalog('/catalogo?state=Hidalgo');
++    await screen.findByRole('article', { name: HOUSE.title });
++
++    await user.click(screen.getByRole('button', { name: 'Cargar más propiedades' }));
++
++    await waitFor(() => expect(titles()).toEqual([HOUSE.title, NEXT.title]));
++    expect(lastCall()).toEqual({ page: 2, limit: 12, state: 'Hidalgo' });
++    expect(
++      screen.getByText('Has visto todas las propiedades que cumplen tus filtros.'),
++    ).toBeInTheDocument();
++  });
++
++  it('volver con el historial restaura la búsqueda anterior', async () => {
++    const user = userEvent.setup();
++    const router = renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++
++    await user.type(field('Estado'), 'Jalisco');
++    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
++    await waitFor(() => expect(chipLabels()).toEqual(['Estado: Jalisco']));
++
++    await act(async () => {
++      await router.navigate(-1);
++    });
++
++    await waitFor(() => expect(chipList()).not.toBeInTheDocument());
++    expect(field('Estado')).toHaveValue('');
++    expect(lastCall()).toEqual({ page: 1, limit: 12 });
++  });
++
++  it('en móvil el panel es desplegable y se abre solo cuando hay un error que corregir', async () => {
++    const user = userEvent.setup();
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++
++    const toggle = screen.getByRole('button', { name: 'Filtros' });
++    const panel = document.getElementById(toggle.getAttribute('aria-controls'));
++    expect(toggle).toHaveAttribute('aria-expanded', 'false');
++    expect(toggle).toHaveClass('lg:hidden');
++    expect(panel).toHaveClass('hidden', 'lg:flex');
++
++    await user.click(toggle);
++    expect(toggle).toHaveAttribute('aria-expanded', 'true');
++    expect(panel).toHaveClass('flex');
++    expect(panel).not.toHaveClass('hidden');
++
++    await user.click(toggle);
++    expect(toggle).toHaveAttribute('aria-expanded', 'false');
++
++    // Con un error de validación el panel se abre para que se vea el campo marcado.
++    await user.type(field('Precio mínimo (MXN)'), 'x');
++    await user.click(screen.getByRole('button', { name: 'Buscar' }));
++    expect(toggle).toHaveAttribute('aria-expanded', 'true');
++  });
++
++  it('las etiquetas de filtros activos se muestran fuera del panel plegable', async () => {
++    renderCatalog('/catalogo?q=casa');
++    await screen.findByRole('article', { name: HOUSE.title });
++    const toggle = screen.getByRole('button', { name: 'Filtros' });
++    const panel = document.getElementById(toggle.getAttribute('aria-controls'));
++
++    expect(toggle).toHaveAttribute('aria-expanded', 'false');
++    expect(panel).not.toContainElement(chipList());
++  });
++
++  it('si no se pueden cargar los servicios, avisa y permite buscar con los demás filtros', async () => {
++    const user = userEvent.setup();
++    api.getPublicServiceCatalog.mockReset().mockRejectedValue(new Error('sin conexión'));
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++
++    expect(
++      await screen.findByText(/No pudimos cargar los servicios disponibles/),
++    ).toBeInTheDocument();
++    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
++
++    await user.type(field('Municipio'), 'Tula');
++    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
++    await waitFor(() => expect(lastCall()).toEqual({ page: 1, limit: 12, municipality: 'Tula' }));
++  });
++
++  it('un error del servidor al filtrar muestra el estado de error con reintento', async () => {
++    const user = userEvent.setup();
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++    api.getPublicProperties.mockRejectedValueOnce(new Error('falló'));
++
++    await user.type(field('Buscar propiedades'), 'casa');
++    await user.click(screen.getByRole('button', { name: 'Buscar' }));
++
++    expect(await screen.findByText('No pudimos cargar el catálogo')).toBeInTheDocument();
++    expect(chipLabels()).toEqual(['Búsqueda: “casa”']);
++
++    await user.click(screen.getByRole('button', { name: /Reintentar/ }));
++    await screen.findByRole('article', { name: HOUSE.title });
++  });
++
++  it('ignora la respuesta de una búsqueda anterior si ya se aplicó otra', async () => {
++    const user = userEvent.setup();
++    renderCatalog();
++    await screen.findByRole('article', { name: HOUSE.title });
++
++    let resolveSlow;
++    api.getPublicProperties.mockImplementationOnce(
++      () => new Promise((resolve) => (resolveSlow = resolve)),
++    );
++    await user.type(field('Buscar propiedades'), 'lenta');
++    await user.click(screen.getByRole('button', { name: 'Buscar' }));
++
++    api.getPublicProperties.mockResolvedValueOnce(result([NEXT], { total: 1 }));
++    await user.clear(field('Buscar propiedades'));
++    await user.type(field('Buscar propiedades'), 'rapida');
++    await user.click(screen.getByRole('button', { name: 'Buscar' }));
++    await waitFor(() => expect(titles()).toEqual([NEXT.title]));
++
++    await act(async () => resolveSlow(result([HOUSE], { total: 1 })));
++    expect(titles()).toEqual([NEXT.title]);
++  });
++});
+diff --git a/tests/catalogFilters.test.js b/tests/catalogFilters.test.js
+new file mode 100644
+index 0000000..4e094f9
+--- /dev/null
++++ b/tests/catalogFilters.test.js
+@@ -0,0 +1,240 @@
++import { describe, expect, it } from 'vitest';
++import {
++  CATALOG_FILTER_KEYS,
++  describeActiveFilters,
++  removeFilter,
++  toSearchParams,
++  validateCatalogFilters,
++  valuesFromSearchParams,
++} from '@/utils/catalogFilters';
++
++const params = (query) => new URLSearchParams(query);
++
++describe('HU-027 · lectura de criterios desde la URL', () => {
++  it('sin parámetros devuelve criterios vacíos', () => {
++    expect(valuesFromSearchParams(params(''))).toEqual({
++      q: '',
++      propertyTypeId: '',
++      minPrice: '',
++      maxPrice: '',
++      state: '',
++      municipality: '',
++      minLandArea: '',
++      maxLandArea: '',
++      hasConstruction: '',
++      serviceIds: [],
++    });
++  });
++
++  it('lee todos los criterios, admite serviceIds con comas o repetidos e ignora lo ajeno', () => {
++    const values = valuesFromSearchParams(
++      params('q=%20casa%20&propertyTypeId=2&minPrice=10&serviceIds=1,2&serviceIds=3&utm=x&page=4'),
++    );
++    expect(values).toMatchObject({ q: 'casa', propertyTypeId: '2', minPrice: '10' });
++    expect(values.serviceIds).toEqual(['1', '2', '3']);
++    expect(values).not.toHaveProperty('utm');
++    expect(values).not.toHaveProperty('page');
++  });
++});
++
++describe('HU-027 · validación antes de consultar (CA4)', () => {
++  it('sin criterios no hay filtros ni errores', () => {
++    expect(validateCatalogFilters({})).toEqual({ filters: {}, errors: {} });
++  });
++
++  it('convierte los textos en tipos reales y solo conserva lo que tiene valor', () => {
++    const { filters, errors } = validateCatalogFilters({
++      q: '  casa   con   jardín ',
++      propertyTypeId: '2',
++      minPrice: '100000',
++      maxPrice: '2500000.50',
++      state: ' Hidalgo ',
++      municipality: '',
++      minLandArea: '0',
++      maxLandArea: '500.5',
++      hasConstruction: 'false',
++      serviceIds: ['2', '1', '2'],
++    });
++    expect(errors).toEqual({});
++    expect(filters).toEqual({
++      q: 'casa con jardín',
++      propertyTypeId: 2,
++      minPrice: 100000,
++      maxPrice: 2500000.5,
++      state: 'Hidalgo',
++      minLandArea: 0,
++      maxLandArea: 500.5,
++      hasConstruction: false,
++      serviceIds: [2, 1],
++    });
++  });
++
++  it('un mínimo mayor que el máximo marca ambos campos y no deja ese rango en los filtros', () => {
++    const price = validateCatalogFilters({ minPrice: '900', maxPrice: '100' });
++    expect(price.errors.minPrice).toMatch(/mínimo no puede ser mayor/);
++    expect(price.errors.maxPrice).toMatch(/máximo no puede ser menor/);
++    expect(price.filters).toEqual({});
++
++    const area = validateCatalogFilters({ minLandArea: '50', maxLandArea: '10' });
++    expect(area.errors.minLandArea).toMatch(/superficie mínima/);
++    expect(area.errors.maxLandArea).toMatch(/superficie máxima/);
++  });
++
++  it('acepta rangos iguales y con un solo extremo', () => {
++    expect(validateCatalogFilters({ minPrice: '5', maxPrice: '5' }).errors).toEqual({});
++    expect(validateCatalogFilters({ maxPrice: '5' }).filters).toEqual({ maxPrice: 5 });
++    expect(validateCatalogFilters({ minLandArea: '5' }).filters).toEqual({ minLandArea: 5 });
++  });
++
++  it.each([
++    ['minPrice', '-1'],
++    ['minPrice', 'abc'],
++    ['maxPrice', '1e3'],
++    ['maxPrice', '1,500'],
++    ['minLandArea', '10.999'],
++    ['maxLandArea', '.5'],
++    ['maxPrice', '1000000000000'],
++    ['maxLandArea', '10000001'],
++  ])('rechaza %s = "%s"', (field, value) => {
++    const { errors, filters } = validateCatalogFilters({ [field]: value });
++    expect(errors[field]).toBeTruthy();
++    expect(filters).toEqual({});
++  });
++
++  it('valida texto, tipo, construcción y servicios', () => {
++    expect(validateCatalogFilters({ q: 'a'.repeat(101) }).errors.q).toMatch(/100 caracteres/);
++    expect(validateCatalogFilters({ state: 'a'.repeat(121) }).errors.state).toMatch(/120/);
++    expect(validateCatalogFilters({ municipality: 'b'.repeat(121) }).errors.municipality).toMatch(
++      /120/,
++    );
++    expect(validateCatalogFilters({ propertyTypeId: '99' }).errors.propertyTypeId).toBeTruthy();
++    expect(validateCatalogFilters({ propertyTypeId: 'casa' }).errors.propertyTypeId).toBeTruthy();
++    expect(
++      validateCatalogFilters({ hasConstruction: 'quizás' }).errors.hasConstruction,
++    ).toBeTruthy();
++    expect(validateCatalogFilters({ serviceIds: ['1', 'agua'] }).errors.serviceIds).toBeTruthy();
++    expect(validateCatalogFilters({ serviceIds: ['0'] }).errors.serviceIds).toBeTruthy();
++    expect(
++      validateCatalogFilters({ serviceIds: Array.from({ length: 31 }, (_, i) => String(i + 1)) })
++        .errors.serviceIds,
++    ).toMatch(/30/);
++  });
++
++  it('reporta todos los errores a la vez', () => {
++    const { errors } = validateCatalogFilters({ minPrice: 'x', propertyTypeId: '99' });
++    expect(Object.keys(errors).sort()).toEqual(['minPrice', 'propertyTypeId']);
++  });
++});
++
++describe('HU-027 · criterios en la dirección de la página', () => {
++  it('genera la URL en orden estable y sin criterios vacíos', () => {
++    const a = toSearchParams({
++      maxPrice: 900,
++      q: 'casa',
++      serviceIds: [2, 1],
++      hasConstruction: false,
++    });
++    const b = toSearchParams({
++      serviceIds: [2, 1],
++      q: 'casa',
++      hasConstruction: false,
++      maxPrice: 900,
++    });
++    expect(a.toString()).toBe('q=casa&maxPrice=900&hasConstruction=false&serviceIds=2%2C1');
++    expect(a.toString()).toBe(b.toString());
++    expect(toSearchParams({}).toString()).toBe('');
++    expect(toSearchParams({ q: '', serviceIds: [] }).toString()).toBe('');
++  });
++
++  it('ida y vuelta: URL → valores → filtros → URL conserva la búsqueda', () => {
++    const original =
++      'q=casa&propertyTypeId=2&minPrice=1000&maxPrice=5000&state=Hidalgo&hasConstruction=true&serviceIds=1%2C3';
++    const { filters, errors } = validateCatalogFilters(valuesFromSearchParams(params(original)));
++    expect(errors).toEqual({});
++    expect(toSearchParams(filters).toString()).toBe(original);
++  });
++
++  it('expone los parámetros que entiende el backend', () => {
++    expect(CATALOG_FILTER_KEYS).toEqual([
++      'q',
++      'propertyTypeId',
++      'minPrice',
++      'maxPrice',
++      'state',
++      'municipality',
++      'minLandArea',
++      'maxLandArea',
++      'hasConstruction',
++      'serviceIds',
++    ]);
++  });
++});
++
++describe('HU-027 · etiquetas de filtros activos', () => {
++  const services = [
++    { id: 1, name: 'Agua potable' },
++    { id: 2, name: 'Electricidad' },
++  ];
++
++  it('sin filtros no hay etiquetas', () => {
++    expect(describeActiveFilters({})).toEqual([]);
++  });
++
++  it('describe cada criterio en español, agrupando los rangos', () => {
++    const chips = describeActiveFilters(
++      {
++        q: 'casa',
++        propertyTypeId: 1,
++        minPrice: 100000,
++        maxPrice: 900000,
++        state: 'Hidalgo',
++        municipality: 'Tula',
++        minLandArea: 200,
++        hasConstruction: true,
++        serviceIds: [1, 9],
++      },
++      services,
++    );
++    expect(chips.map((chip) => chip.label)).toEqual([
++      'Búsqueda: “casa”',
++      'Tipo: Terreno',
++      'Precio: $100,000 – $900,000',
++      'Estado: Hidalgo',
++      'Municipio: Tula',
++      'Superficie: desde 200 m²',
++      'Con construcción',
++      'Servicio: Agua potable',
++      'Servicio: #9',
++    ]);
++  });
++
++  it('formatos de rango con un solo extremo y sin construcción', () => {
++    const chips = describeActiveFilters({
++      maxPrice: 500000,
++      maxLandArea: 1500.5,
++      hasConstruction: false,
++    });
++    expect(chips.map((chip) => chip.label)).toEqual([
++      'Precio: hasta $500,000',
++      'Superficie: hasta 1,500.5 m²',
++      'Sin construcción',
++    ]);
++  });
++
++  it('quitar una etiqueta elimina solo ese criterio y no modifica el original', () => {
++    const filters = { q: 'casa', minPrice: 1, maxPrice: 2, serviceIds: [1, 2] };
++    const chips = describeActiveFilters(filters, services);
++    const price = chips.find((chip) => chip.id === 'price');
++    const service = chips.find((chip) => chip.id === 'service-1');
++
++    expect(removeFilter(filters, price)).toEqual({ q: 'casa', serviceIds: [1, 2] });
++    expect(removeFilter(filters, service)).toEqual({
++      q: 'casa',
++      minPrice: 1,
++      maxPrice: 2,
++      serviceIds: [2],
++    });
++    expect(removeFilter({ serviceIds: [1] }, service)).toEqual({});
++    expect(filters).toEqual({ q: 'casa', minPrice: 1, maxPrice: 2, serviceIds: [1, 2] });
++  });
++});
+diff --git a/tests/catalogSearch.service.test.js b/tests/catalogSearch.service.test.js
+new file mode 100644
+index 0000000..acad2c1
+--- /dev/null
++++ b/tests/catalogSearch.service.test.js
+@@ -0,0 +1,56 @@
++import { describe, expect, it, vi } from 'vitest';
++import client from '@/api/client';
++import { getPublicProperties, getPublicServiceCatalog } from '@/api/property.service';
++
++describe('HU-027 · servicio de búsqueda (consulta de HU-011)', () => {
++  it('envía solo los criterios con valor, con los nombres del backend', async () => {
++    const get = vi.spyOn(client, 'get').mockResolvedValue({ data: {} });
++    await getPublicProperties({
++      page: 2,
++      limit: 12,
++      q: 'casa',
++      propertyTypeId: 2,
++      minPrice: 0,
++      maxPrice: 900000,
++      state: 'Hidalgo',
++      municipality: '',
++      minLandArea: undefined,
++      maxLandArea: null,
++      hasConstruction: false,
++      serviceIds: [1, 3],
++    });
++    expect(get).toHaveBeenCalledWith('/properties', {
++      params: {
++        page: 2,
++        limit: 12,
++        q: 'casa',
++        propertyTypeId: 2,
++        minPrice: 0,
++        maxPrice: 900000,
++        state: 'Hidalgo',
++        hasConstruction: false,
++        serviceIds: '1,3',
++      },
++      skipAuth: true,
++    });
++  });
++
++  it('no reenvía parámetros desconocidos (status, ownerId...) ni serviceIds vacío', async () => {
++    const get = vi.spyOn(client, 'get').mockResolvedValue({ data: {} });
++    await getPublicProperties({ status: 'draft', ownerId: 1, serviceIds: [] });
++    expect(get).toHaveBeenCalledWith('/properties', {
++      params: { page: 1, limit: 12 },
++      skipAuth: true,
++    });
++  });
++
++  it('el catálogo de servicios es público: no adjunta token', async () => {
++    const services = [{ id: 1, name: 'Agua potable', description: null }];
++    const get = vi.spyOn(client, 'get').mockResolvedValue({ data: { services } });
++    await expect(getPublicServiceCatalog()).resolves.toEqual(services);
++    expect(get).toHaveBeenCalledWith('/services', { skipAuth: true });
++
++    get.mockResolvedValue({ data: {} });
++    await expect(getPublicServiceCatalog()).resolves.toEqual([]);
++  });
++});
