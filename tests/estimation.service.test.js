@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import client from '@/api/client';
 import {
+  ESTIMATION_TIMEOUT_MS,
   getEstimations,
   getMyProperty,
   requestEstimation,
@@ -8,12 +9,15 @@ import {
 } from '@/api/estimation.service';
 
 describe('estimationService (HU-009)', () => {
-  it('requestEstimation solicita la estimación con POST', async () => {
+  it('requestEstimation solicita la estimación con POST y más tiempo de espera', async () => {
     const body = { estimation: { id: '15' } };
     const post = vi.spyOn(client, 'post').mockResolvedValue({ data: body });
 
     await expect(requestEstimation('7')).resolves.toEqual(body);
-    expect(post).toHaveBeenCalledWith('/properties/7/estimations');
+    expect(post).toHaveBeenCalledWith('/properties/7/estimations', null, {
+      timeout: ESTIMATION_TIMEOUT_MS,
+    });
+    expect(ESTIMATION_TIMEOUT_MS).toBeGreaterThan(15000);
   });
 
   it('getEstimations consulta el historial de la propiedad', async () => {

@@ -12,6 +12,7 @@ import { API_URL, STORAGE_KEYS } from '@/utils/constants';
  * Si la petición falla, el error que recibes en el catch ya trae:
  *   - error.message → texto en español listo para mostrar al usuario
  *   - error.status  → código HTTP (o null si no hubo respuesta)
+ *   - error.code    → código de axios ('ECONNABORTED' si se agotó el tiempo de espera)
  *   - error.details → cuerpo de la respuesta del backend (para depurar / validaciones)
  *
  * Opción por petición `skipAuth: true`: no adjunta el token y un 401 NO cierra la sesión
@@ -84,6 +85,7 @@ client.interceptors.response.use(
 
     const friendlyError = new Error(message);
     friendlyError.status = status;
+    friendlyError.code = error.code ?? null;
     friendlyError.details = error.response?.data ?? null;
     return Promise.reject(friendlyError);
   },
