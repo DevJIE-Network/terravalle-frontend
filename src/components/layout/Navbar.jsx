@@ -6,13 +6,19 @@ import { AUTH_NAV_LINKS, GUEST_NAV_LINKS, ROUTES } from '@/utils/constants';
 import { cn } from '@/utils/helpers';
 
 /** Clases de un enlace según si está activo y si es la versión móvil o de escritorio. */
-function linkClasses({ isActive, mobile }) {
+function linkClasses({ isActive, mobile, cta = false }) {
+  if (cta) {
+    return cn(
+      'font-display rounded-full bg-primary-600 font-semibold text-white shadow-sm transition-colors hover:bg-primary-700',
+      mobile ? 'block px-4 py-3 text-center text-base' : 'ml-1 px-4 py-2 text-sm',
+    );
+  }
   return cn(
-    'rounded-lg font-medium transition-colors',
-    mobile ? 'block px-4 py-3 text-base' : 'px-3 py-2 text-sm',
+    'rounded-full font-medium transition-colors',
+    mobile ? 'block px-4 py-3 text-base' : 'px-4 py-2 text-sm',
     isActive
-      ? 'bg-primary-100 text-primary-800'
-      : 'text-ink-muted hover:bg-surface-muted hover:text-primary-700',
+      ? 'bg-primary-600/10 text-primary-800 ring-primary-600/20 ring-1'
+      : 'text-ink-muted hover:bg-white hover:text-primary-800',
   );
 }
 
@@ -68,7 +74,9 @@ export default function Navbar() {
           <NavLink
             to={link.to}
             onClick={closeMenu}
-            className={({ isActive }) => linkClasses({ isActive, mobile })}
+            className={({ isActive }) =>
+              linkClasses({ isActive, mobile, cta: link.to === ROUTES.REGISTER })
+            }
           >
             {link.label}
           </NavLink>
@@ -80,8 +88,8 @@ export default function Navbar() {
             type="button"
             onClick={handleLogout}
             className={cn(
-              'w-full rounded-lg text-left font-medium text-red-700 transition-colors hover:bg-red-50',
-              mobile ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm',
+              'w-full rounded-full text-left font-medium text-red-700 transition-colors hover:bg-red-50',
+              mobile ? 'px-4 py-3 text-base' : 'px-4 py-2 text-sm',
             )}
           >
             Cerrar sesión
@@ -112,7 +120,7 @@ export default function Navbar() {
       {isOpen && (
         <div
           id="mobile-menu"
-          className="absolute inset-x-0 top-full border-b border-stone-200 bg-white shadow-md md:hidden"
+          className="bg-surface absolute inset-x-0 top-full border-b border-stone-200 shadow-lg md:hidden"
         >
           <ul className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">{renderItems(true)}</ul>
         </div>
