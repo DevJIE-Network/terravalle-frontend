@@ -2,14 +2,18 @@ import { Link } from 'react-router-dom';
 import { cn } from '@/utils/helpers';
 
 const VARIANTS = {
-  primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
+  primary:
+    'bg-primary-600 text-white shadow-sm shadow-primary-900/15 hover:bg-primary-700 hover:shadow-md active:bg-primary-800',
   secondary:
-    'bg-white text-primary-700 border border-primary-300 hover:bg-primary-50 active:bg-primary-100',
-  danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
+    'bg-white text-primary-800 border border-stone-300 shadow-xs hover:border-primary-300 hover:bg-primary-50 active:bg-primary-100',
+  accent:
+    'bg-earth-600 text-white shadow-sm shadow-earth-900/15 hover:bg-earth-700 hover:shadow-md active:bg-earth-800',
+  ghost: 'bg-transparent text-primary-700 hover:bg-primary-50 active:bg-primary-100',
+  danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700 active:bg-red-800',
 };
 
 const SIZES = {
-  sm: 'h-9 px-3 text-sm',
+  sm: 'h-9 px-3.5 text-sm',
   md: 'h-11 px-5 text-sm',
   lg: 'h-12 px-6 text-base',
 };
@@ -18,7 +22,7 @@ const SIZES = {
  * Botón base de TerraValle.
  *
  * @param {object} props
- * @param {'primary'|'secondary'|'danger'} [props.variant='primary'] Estilo visual.
+ * @param {'primary'|'secondary'|'accent'|'ghost'|'danger'} [props.variant='primary'] Estilo visual.
  * @param {'sm'|'md'|'lg'} [props.size='md'] Tamaño.
  * @param {boolean} [props.loading=false] Muestra un spinner y deshabilita el botón.
  * @param {boolean} [props.disabled=false] Deshabilita el botón.
@@ -48,8 +52,9 @@ export default function Button({
 }) {
   const isDisabled = disabled || loading;
   const classes = cn(
-    'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors',
-    'disabled:cursor-not-allowed disabled:opacity-60',
+    'inline-flex items-center justify-center gap-2 rounded-xl font-display font-semibold tracking-tight',
+    'transition-all duration-150 active:translate-y-px',
+    'disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none disabled:active:translate-y-0',
     VARIANTS[variant],
     SIZES[size],
     fullWidth && 'w-full',

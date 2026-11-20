@@ -10,6 +10,26 @@ export async function getPublicProperties({ page = 1, limit = 12 } = {}) {
   return { properties: data.properties ?? [], pagination: data.pagination ?? null };
 }
 
+/**
+ * Ficha pública de una propiedad activa. Responde 404 si no existe y 410 si ya no está disponible.
+ * @param {string|number} propertyId
+ * @returns {Promise<{ property: object, notes: object }>}
+ */
+export async function getPublicProperty(propertyId) {
+  const { data } = await client.get(`/properties/${propertyId}`, { skipAuth: true });
+  return { property: data.property, notes: data.notes ?? {} };
+}
+
+/**
+ * Medio de contacto que el vendedor habilitó para una propiedad activa.
+ * @param {string|number} propertyId
+ * @returns {Promise<{ type: 'phone'|'whatsapp'|'email', value: string }>}
+ */
+export async function getPropertyContact(propertyId) {
+  const { data } = await client.get(`/properties/${propertyId}/contact`, { skipAuth: true });
+  return data.contact;
+}
+
 export async function createProperty(payload) {
   const { data } = await client.post('/properties', payload);
 

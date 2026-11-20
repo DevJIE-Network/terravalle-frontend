@@ -8,6 +8,7 @@ import { ROUTES, STORAGE_KEYS } from '@/utils/constants';
 vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal()),
   getPublicProperties: vi.fn(),
+  getPublicProperty: vi.fn(),
 }));
 
 describe('HU-026 · rutas públicas reales', () => {
@@ -24,6 +25,10 @@ describe('HU-026 · rutas públicas reales', () => {
         hasPreviousPage: false,
       },
     });
+    api.getPublicProperty.mockResolvedValue({
+      property: { id: '7', title: 'Terreno en Tula', propertyType: { id: 1, name: 'Terreno' } },
+      notes: {},
+    });
     render(<App />);
     await user.click(screen.getByRole('link', { name: 'Ver catálogo' }));
     const propertyLink = await screen.findByRole('link', {
@@ -38,13 +43,11 @@ describe('HU-026 · rutas públicas reales', () => {
     await user.keyboard('{Enter}');
 
     expect(
-      await screen.findByRole('heading', { name: 'Ficha de la propiedad' }),
+      await screen.findByRole('heading', { level: 1, name: 'Terreno en Tula' }),
     ).toBeInTheDocument();
     expect(window.location.pathname).toBe('/propiedades/7');
-    expect(
-      screen.getByText('El detalle público estará disponible próximamente'),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Volver al catálogo' })).toHaveAttribute(
+    expect(api.getPublicProperty).toHaveBeenCalledWith('7');
+    expect(screen.getByRole('link', { name: /Volver al catálogo/ })).toHaveAttribute(
       'href',
       ROUTES.CATALOG,
     );

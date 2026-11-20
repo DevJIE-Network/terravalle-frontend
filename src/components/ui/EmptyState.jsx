@@ -30,16 +30,16 @@ export default function EmptyState({ title, description, icon, action, className
   return (
     <div
       className={cn(
-        'flex flex-col items-center rounded-xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center',
+        'flex flex-col items-center rounded-3xl border border-dashed border-stone-300 bg-white/70 px-6 py-14 text-center',
         className,
       )}
     >
-      <div className="bg-primary-50 text-primary-600 mb-4 flex size-14 items-center justify-center rounded-full">
+      <div className="bg-primary-50 text-primary-600 ring-primary-100 mb-5 flex size-16 items-center justify-center rounded-2xl ring-8">
         {icon ?? <DefaultIcon />}
       </div>
-      <h3 className="text-ink text-base font-semibold">{title}</h3>
-      {description && <p className="text-ink-muted mt-1 max-w-md text-sm">{description}</p>}
-      {action && <div className="mt-5">{action}</div>}
+      <h3 className="text-ink text-lg font-semibold">{title}</h3>
+      {description && <p className="text-ink-muted mt-2 max-w-md text-sm">{description}</p>}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
 }
