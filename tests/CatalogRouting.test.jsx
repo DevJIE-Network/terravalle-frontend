@@ -8,6 +8,7 @@ import { ROUTES, STORAGE_KEYS } from '@/utils/constants';
 vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal()),
   getPublicProperties: vi.fn(),
+  getPublicServiceCatalog: vi.fn().mockResolvedValue([]),
   getPublicProperty: vi.fn(),
 }));
 

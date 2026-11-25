@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { getPublicProperty } from '@/api';
 import { Isotype } from '@/components/brand';
 import { Button, ErrorState } from '@/components/ui';
@@ -71,7 +71,17 @@ function DetailSkeleton() {
 }
 
 /** CA4: la publicación no existe o ya no está disponible. */
+/** Regresa al catálogo con la búsqueda desde la que se abrió la ficha, si la hay. */
+function useCatalogHref() {
+  const { state } = useLocation();
+  const search = state?.catalogSearch;
+  return typeof search === 'string' && search.startsWith('?')
+    ? `${ROUTES.CATALOG}${search}`
+    : ROUTES.CATALOG;
+}
+
 function UnavailableNotice({ gone }) {
+  const catalogHref = useCatalogHref();
   return (
     <section className="mx-auto flex max-w-xl flex-col items-center rounded-3xl border border-stone-200 bg-white px-6 py-14 text-center shadow-sm">
       <Isotype className="mb-5 h-14" />
@@ -81,7 +91,7 @@ function UnavailableNotice({ gone }) {
           ? 'El vendedor la desactivó o la retiró, así que ya no se muestra a compradores.'
           : 'No encontramos la propiedad que buscas. Es posible que el enlace sea incorrecto o antiguo.'}
       </p>
-      <Button to={ROUTES.CATALOG} size="lg" className="mt-8">
+      <Button to={catalogHref} size="lg" className="mt-8">
         Volver al catálogo
       </Button>
     </section>
@@ -94,6 +104,7 @@ function UnavailableNotice({ gone }) {
  */
 export default function PublicPropertyPage() {
   const { id } = useParams();
+  const catalogHref = useCatalogHref();
   const [state, setState] = useState({ status: 'loading', data: null, error: null });
   const [attempt, setAttempt] = useState(0);
 
@@ -131,7 +142,7 @@ export default function PublicPropertyPage() {
     <article className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
         <Link
-          to={ROUTES.CATALOG}
+          to={catalogHref}
           className="text-primary-700 w-fit text-sm font-semibold hover:underline"
         >
           ← Volver al catálogo

@@ -8,6 +8,7 @@ import CatalogPage from '@/pages/Catalog/CatalogPage';
 vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal()),
   getPublicProperties: vi.fn(),
+  getPublicServiceCatalog: vi.fn(),
 }));
 
 const HOUSE = {
@@ -72,6 +73,7 @@ const titles = () =>
   screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
 
 beforeEach(() => {
+  api.getPublicServiceCatalog.mockReset().mockResolvedValue([]);
   api.getPublicProperties.mockReset().mockResolvedValue(result([HOUSE, LAND]));
 });
 
@@ -258,7 +260,11 @@ describe('HU-026 · paginación incremental', () => {
     renderPage();
     await screen.findByRole('article');
     await user.click(screen.getByRole('button', { name: 'Cargar más propiedades' }));
-    await waitFor(() => expect(screen.queryByRole('button')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: /Cargar más propiedades/ }),
+      ).not.toBeInTheDocument(),
+    );
     expect(titles()).toEqual([HOUSE.title]);
   });
 
