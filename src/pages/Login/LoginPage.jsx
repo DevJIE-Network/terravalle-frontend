@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Alert, Button, Input, PageHeader } from '@/components/ui';
+import AuthShell from '@/components/layout/AuthShell';
+import { Alert, Button, Input } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { ROUTES } from '@/utils/constants';
 import { isValidEmail, resolveRedirectPath } from '@/utils/helpers';
@@ -77,12 +78,10 @@ export default function LoginPage() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-md">
-      <PageHeader
-        title="Iniciar sesión"
-        description="Accede a tu cuenta para publicar propiedades y guardar tus favoritas."
-      />
-
+    <AuthShell
+      title="Iniciar sesión"
+      description="Accede a tu cuenta para publicar propiedades y guardar tus favoritas."
+    >
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
         {showExpiredNotice && (
           <Alert
@@ -125,6 +124,7 @@ export default function LoginPage() {
         <label className="text-ink flex items-center gap-2 text-sm">
           <input
             type="checkbox"
+            className="accent-primary-600 size-4"
             checked={showPassword}
             onChange={(event) => setShowPassword(event.target.checked)}
           />
@@ -132,7 +132,11 @@ export default function LoginPage() {
         </label>
 
         {generalError && (
-          <Alert variant="error" title="No se pudo iniciar sesión" onClose={() => setGeneralError('')}>
+          <Alert
+            variant="error"
+            title="No se pudo iniciar sesión"
+            onClose={() => setGeneralError('')}
+          >
             {generalError}
           </Alert>
         )}
@@ -141,13 +145,13 @@ export default function LoginPage() {
           {isSubmitting ? 'Iniciando sesión...' : 'Iniciar sesión'}
         </Button>
 
-        <div className="border-t border-stone-200 pt-4">
+        <div className="border-t border-stone-200 pt-5">
           <p className="text-ink-muted mb-3 text-center text-sm">¿Aún no tienes una cuenta?</p>
           <Button to={ROUTES.REGISTER} variant="secondary" fullWidth>
             Crear cuenta
           </Button>
         </div>
       </form>
-    </section>
+    </AuthShell>
   );
 }

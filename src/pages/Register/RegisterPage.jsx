@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { register as registerUser } from '@/api/auth.service';
-import { Alert, Button, Input, PageHeader } from '@/components/ui';
+import AuthShell from '@/components/layout/AuthShell';
+import { Alert, Button, Input } from '@/components/ui';
 import { ROUTES } from '@/utils/constants';
 import { isValidEmail } from '@/utils/helpers';
 
@@ -65,11 +66,9 @@ export default function RegisterPage() {
     if (!form.password) {
       newErrors.password = 'La contraseña es obligatoria.';
     } else if (form.password.length < 8) {
-      newErrors.password =
-        'La contraseña debe tener al menos 8 caracteres.';
+      newErrors.password = 'La contraseña debe tener al menos 8 caracteres.';
     } else if (form.password.length > 72) {
-      newErrors.password =
-        'La contraseña no puede superar los 72 caracteres.';
+      newErrors.password = 'La contraseña no puede superar los 72 caracteres.';
     }
 
     // Confirmación
@@ -114,8 +113,7 @@ export default function RegisterPage() {
       void navigate(ROUTES.LOGIN, {
         replace: true,
         state: {
-          message:
-            'Cuenta creada correctamente. Ahora puedes iniciar sesión.',
+          message: 'Cuenta creada correctamente. Ahora puedes iniciar sesión.',
         },
       });
     } catch (error) {
@@ -141,17 +139,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-md">
-      <PageHeader
-        title="Crear cuenta"
-        description="Regístrate para publicar tus inmuebles y guardar propiedades favoritas."
-      />
-
-      <form
-        onSubmit={handleSubmit}
-        noValidate
-        className="space-y-5"
-      >
+    <AuthShell
+      title="Crear cuenta"
+      description="Regístrate para publicar tus inmuebles y guardar propiedades favoritas."
+    >
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
         <Input
           label="Nombre"
           name="name"
@@ -201,10 +193,9 @@ export default function RegisterPage() {
           <label className="text-ink flex items-center gap-2 text-sm">
             <input
               type="checkbox"
+              className="accent-primary-600 size-4"
               checked={showPassword}
-              onChange={(event) =>
-                setShowPassword(event.target.checked)
-              }
+              onChange={(event) => setShowPassword(event.target.checked)}
             />
             Mostrar contraseña
           </label>
@@ -220,30 +211,18 @@ export default function RegisterPage() {
           </Alert>
         )}
 
-        <Button
-          type="submit"
-          loading={isSubmitting}
-          fullWidth
-        >
-          {isSubmitting
-            ? 'Creando cuenta...'
-            : 'Crear cuenta'}
+        <Button type="submit" loading={isSubmitting} fullWidth>
+          {isSubmitting ? 'Creando cuenta...' : 'Crear cuenta'}
         </Button>
 
         <div className="border-t border-stone-200 pt-4">
-          <p className="text-ink-muted mb-3 text-center text-sm">
-            ¿Ya tienes una cuenta?
-          </p>
+          <p className="text-ink-muted mb-3 text-center text-sm">¿Ya tienes una cuenta?</p>
 
-          <Button
-            to={ROUTES.LOGIN}
-            variant="secondary"
-            fullWidth
-          >
+          <Button to={ROUTES.LOGIN} variant="secondary" fullWidth>
             Iniciar sesión
           </Button>
         </div>
       </form>
-    </section>
+    </AuthShell>
   );
 }

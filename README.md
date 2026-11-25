@@ -61,16 +61,16 @@ Abre <http://localhost:5173>.
 
 ## Comandos
 
-| Comando                | Qué hace                                           |
-| ---------------------- | -------------------------------------------------- |
-| `npm run dev`          | Servidor de desarrollo con recarga automática      |
-| `npm run build`        | Genera la versión de producción en `dist/`         |
-| `npm run preview`      | Sirve localmente el build de `dist/` para probarlo |
-| `npm run lint`         | Revisa el código con ESLint                        |
-| `npm test`             | Ejecuta las pruebas automatizadas (Vitest)         |
-| `npm run test:coverage`| Pruebas con reporte de cobertura en `coverage/`    |
-| `npm run format`       | Formatea todo el código con Prettier               |
-| `npm run format:check` | Verifica el formato sin modificar archivos         |
+| Comando                 | Qué hace                                           |
+| ----------------------- | -------------------------------------------------- |
+| `npm run dev`           | Servidor de desarrollo con recarga automática      |
+| `npm run build`         | Genera la versión de producción en `dist/`         |
+| `npm run preview`       | Sirve localmente el build de `dist/` para probarlo |
+| `npm run lint`          | Revisa el código con ESLint                        |
+| `npm test`              | Ejecuta las pruebas automatizadas (Vitest)         |
+| `npm run test:coverage` | Pruebas con reporte de cobertura en `coverage/`    |
+| `npm run format`        | Formatea todo el código con Prettier               |
+| `npm run format:check`  | Verifica el formato sin modificar archivos         |
 
 > Antes de cada commit ejecuta `npm run format` y `npm run lint`. El PR no debe tener errores de lint ni de build.
 
@@ -98,21 +98,44 @@ src/
 
 ### Rutas
 
-| Ruta               | Acceso          | Página             | Historia que la completa |
-| ------------------ | --------------- | ------------------ | ------------------------ |
-| `/`                | Pública         | `HomePage`         | Por asignar              |
-| `/catalogo`        | Pública         | `CatalogPage`      | HU-026, HU-027, HU-028   |
-| `/login`           | Solo visitantes | `LoginPage`        | HU-018 ✔                 |
-| `/registro`        | Solo visitantes | `RegisterPage`     | HU-017                   |
-| `/mis-propiedades` | Protegida       | `MyPropertiesPage` | HU-024 ✔ (y HU-020 a 025) |
-| `/mis-propiedades/:id/editar` | Protegida | `EditPropertyPage` | HU-024 ✔ |
-| `/mis-propiedades/:id/dimensiones` | Protegida | `PropertyDimensionsPage` | HU-021 ✔ |
-| `/favoritos`       | Protegida       | `FavoritesPage`    | HU-030                   |
-| `/perfil`          | Protegida       | `ProfilePage`      | HU-019                   |
-| `/404` y `*`       | Pública         | `NotFoundPage`     | HU-016 ✔                 |
+| Ruta                               | Acceso          | Página                   | Historia que la completa  |
+| ---------------------------------- | --------------- | ------------------------ | ------------------------- |
+| `/`                                | Pública         | `HomePage`               | Por asignar               |
+| `/catalogo`                        | Pública         | `CatalogPage`            | HU-026, HU-027, HU-028    |
+| `/login`                           | Solo visitantes | `LoginPage`              | HU-018 ✔                  |
+| `/registro`                        | Solo visitantes | `RegisterPage`           | HU-017                    |
+| `/mis-propiedades`                 | Protegida       | `MyPropertiesPage`       | HU-024 ✔ (y HU-020 a 025) |
+| `/mis-propiedades/:id/editar`      | Protegida       | `EditPropertyPage`       | HU-024 ✔                  |
+| `/mis-propiedades/:id/dimensiones` | Protegida       | `PropertyDimensionsPage` | HU-021 ✔                  |
+| `/favoritos`                       | Protegida       | `FavoritesPage`          | HU-030                    |
+| `/perfil`                          | Protegida       | `ProfilePage`            | HU-019                    |
+| `/404` y `*`                       | Pública         | `NotFoundPage`           | HU-016 ✔                  |
 
 - **Protegida:** sin sesión redirige a `/login`.
 - **Solo visitantes:** con sesión iniciada redirige a `/`.
+
+### Búsqueda y filtros del catálogo
+
+`/catalogo` incluye una barra de búsqueda y un panel de filtros que consumen la consulta del catálogo (`GET /properties`). Código en `src/pages/Catalog/` (`CatalogFilters`, `ActiveFilters`), lógica pura en `src/utils/catalogFilters.js` y llamada al API en `getPublicProperties` / `getPublicServiceCatalog` (`src/api/property.service.js`).
+
+| Criterio             | Parámetro de la URL y del API                                |
+| -------------------- | ------------------------------------------------------------ |
+| Texto                | `q`                                                          |
+| Tipo de inmueble     | `propertyTypeId`                                             |
+| Rango de precio      | `minPrice`, `maxPrice`                                       |
+| Ubicación            | `state`, `municipality`                                      |
+| Superficie (terreno) | `minLandArea`, `maxLandArea`                                 |
+| Construcción         | `hasConstruction` (`true`/`false`)                           |
+| Servicios            | `serviceIds` (ids separados por coma; deben cumplirse todos) |
+
+- **Combinables y compartibles:** los criterios se guardan en la dirección (`/catalogo?q=casa&maxPrice=900000`), así que se puede volver con el historial, recargar o compartir la búsqueda. Sin parámetros se muestra el catálogo general.
+- **Etiquetas activas:** cada filtro aplicado aparece como etiqueta que se quita por separado, y "Limpiar filtros" vuelve al catálogo general. Las etiquetas están fuera del panel, por lo que se ven aunque esté plegado.
+- **Móvil:** el panel es una sección desplegable (botón "Filtros", `aria-expanded`); desde `lg` siempre está abierto. Se abre solo si hay un campo con error.
+- **Validación en pantalla:** antes de consultar se valida con las mismas reglas del backend (números ≥ 0 con máximo dos decimales, mínimo ≤ máximo, textos de hasta 120 caracteres). Si hay errores se marcan los campos, se lleva el foco al primero y **no se envía la consulta**. Una URL con criterios inválidos tampoco consulta.
+- **Paginación:** "Cargar más" conserva los criterios; al cambiarlos se reinicia a la página 1.
+- **Sin resultados:** se muestra "No se encontraron propiedades con estos filtros." con un botón para limpiar.
+- **Servicios:** las opciones salen del catálogo público de servicios (`GET /services`). Si no carga, el resto de filtros sigue funcionando.
+- **Ficha:** al abrir una propiedad desde una búsqueda, "Volver al catálogo" regresa a esa misma búsqueda.
 
 ## ¿Dónde trabajo?
 
@@ -289,12 +312,12 @@ El análisis estático se ejecuta automáticamente con **SonarQube Cloud** (plan
 - **Workflow:** `.github/workflows/sonarcloud.yml`. Corre en cada push a `main`, `developer`, `release` y ramas `sprint*`, y en cada Pull Request. Ejecuta `npm run lint` (ESLint), luego `npm run test:coverage` (Vitest) y después envía el código y la cobertura a SonarQube Cloud.
 - **Configuración:** `sonar-project.properties` (organización, clave del proyecto, código en `src`, pruebas en `tests` y cobertura en `coverage/lcov.info`).
 - **Pruebas:** `tests/` con Vitest y Testing Library (validaciones, servicio de usuario, perfil HU-019, cierre de sesión y arranque de la app).
-- **Métricas:** bugs, vulnerabilidades, security hotspots, code smells, duplicación y deuda técnica, además de la *Quality Gate* del código nuevo.
+- **Métricas:** bugs, vulnerabilidades, security hotspots, code smells, duplicación y deuda técnica, además de la _Quality Gate_ del código nuevo.
 
 Configuración inicial (una sola vez):
 
 1. Entrar a [sonarcloud.io](https://sonarcloud.io) con GitHub e importar la organización `DevJIE-Network`.
-2. Crear el proyecto `terravalle-frontend` (plan Free) y en **Administration → Analysis Method** desactivar *Automatic Analysis*.
+2. Crear el proyecto `terravalle-frontend` (plan Free) y en **Administration → Analysis Method** desactivar _Automatic Analysis_.
 3. Generar un token en **My Account → Access tokens** y guardarlo en GitHub como secreto `SONAR_TOKEN` (**Settings → Secrets and variables → Actions**).
 
 ## Metodología

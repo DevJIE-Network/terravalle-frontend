@@ -25,6 +25,17 @@ export function formatPrice(value) {
 }
 
 /**
+ * Fecha legible en español de México ("20 de noviembre de 2026"). Devuelve '' si no es válida.
+ * @param {string|number|Date} value
+ * @returns {string}
+ */
+export function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'long' }).format(date);
+}
+
+/**
  * Indica si un token JWT ya venció (según su campo `exp`).
  * Si el token no es un JWT o no trae `exp`, se considera vigente y la validez
  * la decide el backend (responderá 401 cuando corresponda).
@@ -53,7 +64,8 @@ export function isTokenExpired(token) {
  */
 export function resolveRedirectPath(from) {
   const pathname = from?.pathname;
-  const isInternal = typeof pathname === 'string' && pathname.startsWith('/') && !pathname.startsWith('//');
+  const isInternal =
+    typeof pathname === 'string' && pathname.startsWith('/') && !pathname.startsWith('//');
   const isAuthScreen = pathname === ROUTES.LOGIN || pathname === ROUTES.REGISTER;
 
   if (!isInternal || isAuthScreen) return ROUTES.HOME;
