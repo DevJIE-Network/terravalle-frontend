@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card } from '@/components/ui';
 import { buildPublicPropertyPath } from '@/utils/constants';
 import {
@@ -54,11 +54,14 @@ function PropertyPhoto({ primaryPhoto, title }) {
 /** Un solo enlace por tarjeta: navegable con teclado, sin controles anidados. */
 export default function PublicPropertyCard({ property }) {
   const headingId = `public-property-${property.id}-title`;
+  // La ficha usa esta búsqueda para que "Volver al catálogo" regrese a los mismos filtros.
+  const { search } = useLocation();
 
   return (
     <article aria-labelledby={headingId} className="h-full">
       <Link
         to={buildPublicPropertyPath(property.id)}
+        state={search ? { catalogSearch: search } : undefined}
         aria-label={`Ver propiedad: ${property.title}`}
         className="group focus-visible:ring-primary-500/40 block h-full rounded-2xl focus-visible:ring-4 focus-visible:outline-none"
       >

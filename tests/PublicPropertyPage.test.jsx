@@ -78,7 +78,7 @@ function buildProperty(overrides = {}) {
   };
 }
 
-function renderDetail({ id = '15', session = false } = {}) {
+function renderDetail({ id = '15', session = false, catalogSearch } = {}) {
   if (session) {
     localStorage.setItem(
       STORAGE_KEYS.SESSION,
@@ -100,7 +100,11 @@ function renderDetail({ id = '15', session = false } = {}) {
         ],
       },
     ],
-    { initialEntries: [`/propiedades/${id}`] },
+    {
+      initialEntries: [
+        { pathname: `/propiedades/${id}`, state: catalogSearch ? { catalogSearch } : null },
+      ],
+    },
   );
   render(<RouterProvider router={router} />);
   return router;
@@ -269,6 +273,16 @@ describe('Ficha pública de una propiedad', () => {
     expect(await screen.findByRole('button', { name: /Guardada en favoritos/ })).toHaveAttribute(
       'aria-pressed',
       'true',
+    );
+  });
+
+  it('vuelve al catálogo con la misma búsqueda desde la que se abrió', async () => {
+    api.getPublicProperty.mockResolvedValue({ property: buildProperty(), notes: {} });
+    renderDetail({ catalogSearch: '?q=casa&maxPrice=900000' });
+
+    expect(await screen.findByRole('link', { name: /Volver al catálogo/ })).toHaveAttribute(
+      'href',
+      `${ROUTES.CATALOG}?q=casa&maxPrice=900000`,
     );
   });
 });

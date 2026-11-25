@@ -1,13 +1,52 @@
+import { CATALOG_FILTER_KEYS } from '@/utils/catalogFilters';
 import client from './client';
 
-/** Catálogo público (HU-010): no necesita token ni debe expirar una sesión. */
-export async function getPublicProperties({ page = 1, limit = 12 } = {}) {
-  const { data } = await client.get('/properties', {
-    params: { page, limit },
-    skipAuth: true,
-  });
+/**
+ * Catálogo público con búsqueda y filtros opcionales.
+ * No necesita token ni debe expirar una sesión.
+ *
+ * Solo se envían los criterios conocidos y con valor: sin filtros la petición es la misma de
+ * siempre ({ page, limit }). `serviceIds` viaja como "1,2,3", que es lo que entiende el backend.
+ *
+ * @param {object} [options]
+ * @param {number} [options.page=1]
+ * @param {number} [options.limit=12]
+ * @param {string} [options.q] Texto en título, municipio o estado.
+ * @param {number} [options.propertyTypeId]
+ * @param {number} [options.minPrice]
+ * @param {number} [options.maxPrice]
+ * @param {string} [options.state]
+ * @param {string} [options.municipality]
+ * @param {number} [options.minLandArea]
+ * @param {number} [options.maxLandArea]
+ * @param {boolean} [options.hasConstruction]
+ * @param {number[]} [options.serviceIds] La propiedad debe tener todos.
+ */
+export async function getPublicProperties({ page = 1, limit = 12, ...filters } = {}) {
+  const params = { page, limit };
+
+  for (const key of CATALOG_FILTER_KEYS) {
+    const value = filters[key];
+    if (value === undefined || value === null || value === '') continue;
+    if (key === 'serviceIds') {
+      if (value.length > 0) params.serviceIds = value.join(',');
+    } else {
+      params[key] = value;
+    }
+  }
+
+  const { data } = await client.get('/properties', { params, skipAuth: true });
 
   return { properties: data.properties ?? [], pagination: data.pagination ?? null };
+}
+
+/**
+ * Catálogo de servicios de TerraValle para el panel de filtros (público, sin token).
+ * @returns {Promise<Array<{ id: number, name: string, description: string|null }>>}
+ */
+export async function getPublicServiceCatalog() {
+  const { data } = await client.get('/services', { skipAuth: true });
+  return data.services ?? [];
 }
 
 /**
