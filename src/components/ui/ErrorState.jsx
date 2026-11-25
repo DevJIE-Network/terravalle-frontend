@@ -26,7 +26,7 @@ export default function ErrorState({
     <div
       role="alert"
       className={cn(
-        'flex flex-col items-center rounded-xl border border-red-200 bg-red-50 px-6 py-8 text-center',
+        'flex flex-col items-center rounded-3xl border border-red-200 bg-red-50/70 px-6 py-12 text-center',
         className,
       )}
     >

@@ -6,8 +6,8 @@ import Navbar from './Navbar';
 /** Encabezado fijo con el logotipo de TerraValle y el menú principal. */
 export default function Header() {
   return (
-    <header className="bg-surface/95 sticky top-0 z-40 border-b border-stone-200 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
+    <header className="bg-surface/85 sticky top-0 z-40 border-b border-stone-200/80 backdrop-blur-md">
+      <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between gap-4 px-4">
         <Link to={ROUTES.HOME} className="shrink-0 rounded-lg">
           <Logo size="sm" />
           <span className="sr-only"> — ir al inicio</span>
