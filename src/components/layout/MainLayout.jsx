@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Footer from './Footer';
 import Header from './Header';
+import OfflineBanner from './OfflineBanner';
 
 /**
  * Estructura común de todas las páginas: encabezado, contenido y pie.
@@ -10,6 +11,7 @@ import Header from './Header';
 export default function MainLayout() {
   return (
     <div className="flex min-h-dvh flex-col">
+      <OfflineBanner />
       <Header />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">
         <Outlet />
