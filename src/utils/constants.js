@@ -111,6 +111,7 @@ export const CONSTRUCTION_CONDITIONS = [
 /** Claves usadas en localStorage. */
 export const STORAGE_KEYS = {
   SESSION: 'terravalle_session',
+  OFFLINE_PROPERTIES: 'terravalle_offline_properties',
 };
 
 /** Opciones del menú para visitantes (sin sesión). */

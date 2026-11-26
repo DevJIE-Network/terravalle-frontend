@@ -164,7 +164,24 @@ function FavoriteToggle({ propertyId }) {
   );
 }
 
-export default function PropertyActions({ propertyId, title }) {
+export default function PropertyActions({ propertyId, title, online = true }) {
+  // Contactar y guardar consultan o modifican datos en el servidor: sin conexión no se ofrecen.
+  if (!online) {
+    return (
+      <div className="flex flex-col gap-3">
+        <Button size="lg" fullWidth disabled>
+          Contactar al vendedor
+        </Button>
+        <Button variant="secondary" size="lg" fullWidth disabled>
+          <HeartIcon /> Guardar en favoritos
+        </Button>
+        <p className="text-ink-muted text-sm">
+          Contactar al vendedor y guardar en favoritos requieren conexión a Internet.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <ContactSeller propertyId={propertyId} title={title} />
