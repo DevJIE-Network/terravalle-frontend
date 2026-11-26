@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card } from '@/components/ui';
 import { buildPublicPropertyPath } from '@/utils/constants';
 import {
@@ -15,7 +15,7 @@ function PropertyPhoto({ primaryPhoto, title }) {
   const [failedUrl, setFailedUrl] = useState(null);
 
   return (
-    <div className="bg-surface-muted -mx-5 -mt-4 mb-5 aspect-[4/3] overflow-hidden">
+    <div className="bg-surface-muted -mx-6 -mt-5 mb-5 aspect-[4/3] overflow-hidden">
       {url && url !== failedUrl ? (
         <img
           src={url}
@@ -25,7 +25,7 @@ function PropertyPhoto({ primaryPhoto, title }) {
           width="640"
           height="480"
           onError={() => setFailedUrl(url)}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
       ) : (
         <div className="from-primary-50 to-earth-50 text-primary-700 flex h-full flex-col items-center justify-center gap-3 bg-linear-to-br px-4 text-center">
@@ -54,15 +54,18 @@ function PropertyPhoto({ primaryPhoto, title }) {
 /** Un solo enlace por tarjeta: navegable con teclado, sin controles anidados. */
 export default function PublicPropertyCard({ property }) {
   const headingId = `public-property-${property.id}-title`;
+  // La ficha usa esta búsqueda para que "Volver al catálogo" regrese a los mismos filtros.
+  const { search } = useLocation();
 
   return (
     <article aria-labelledby={headingId} className="h-full">
       <Link
         to={buildPublicPropertyPath(property.id)}
+        state={search ? { catalogSearch: search } : undefined}
         aria-label={`Ver propiedad: ${property.title}`}
-        className="group block h-full rounded-xl"
+        className="group focus-visible:ring-primary-500/40 block h-full rounded-2xl focus-visible:ring-4 focus-visible:outline-none"
       >
-        <Card className="h-full overflow-hidden transition-shadow group-hover:shadow-md">
+        <Card className="h-full overflow-hidden transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lg">
           <div className="flex h-full flex-col">
             <PropertyPhoto primaryPhoto={property.primaryPhoto} title={property.title} />
             <p className="bg-earth-50 text-earth-800 mb-3 self-start rounded-full px-3 py-1 text-xs font-semibold">
@@ -70,14 +73,14 @@ export default function PublicPropertyCard({ property }) {
             </p>
             <h2
               id={headingId}
-              className="text-ink group-hover:text-primary-700 text-lg font-semibold break-words"
+              className="font-display text-ink group-hover:text-primary-700 text-lg font-semibold break-words"
             >
               {property.title}
             </h2>
             <p className="text-ink-muted mt-1 text-sm break-words">
               {summarizePropertyLocation(property.location)}
             </p>
-            <p className="text-primary-800 mt-4 text-xl font-bold">
+            <p className="font-display text-primary-800 mt-4 text-xl font-bold">
               {formatMxnPrice(property.publicationPrice)}
             </p>
             <div className="text-ink-muted mt-2 mb-5 flex flex-wrap gap-x-3 gap-y-1 text-sm">

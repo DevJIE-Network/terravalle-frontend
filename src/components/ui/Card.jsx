@@ -18,17 +18,21 @@ export default function Card({ title, footer, children, className }) {
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-col rounded-xl border border-stone-200 bg-white shadow-sm',
+        'flex min-w-0 flex-col rounded-2xl border border-stone-200 bg-white shadow-sm',
         className,
       )}
     >
       {title && (
-        <div className="border-b border-stone-100 px-5 py-4">
-          <h3 className="text-ink text-base font-semibold">{title}</h3>
+        <div className="border-b border-stone-100 px-6 py-4">
+          <h3 className="text-ink text-lg font-semibold">{title}</h3>
         </div>
       )}
-      <div className="flex-1 px-5 py-4">{children}</div>
-      {footer && <div className="border-t border-stone-100 px-5 py-3">{footer}</div>}
+      <div className="flex-1 px-6 py-5">{children}</div>
+      {footer && (
+        <div className="bg-surface/40 rounded-b-2xl border-t border-stone-100 px-6 py-4">
+          {footer}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { formatPrice } from './helpers';
+import { resolveMediaUrl } from './media';
 
 export const PUBLIC_PROPERTIES_PAGE_SIZE = 12;
 
@@ -35,10 +36,14 @@ export function getPublicPropertyType(propertyType) {
   return (typeof propertyType === 'string' ? propertyType : propertyType?.name) || 'Propiedad';
 }
 
-/** Usa únicamente primaryPhoto del contrato público, no las fotos privadas del dueño. */
+/**
+ * Usa únicamente primaryPhoto del contrato público, no las fotos privadas del dueño.
+ * El API la envía como `imageUrl`; también se acepta `url` o un texto directo.
+ */
 export function getPublicPhotoUrl(primaryPhoto) {
-  const url = typeof primaryPhoto === 'string' ? primaryPhoto : primaryPhoto?.url;
-  return typeof url === 'string' && url.trim() ? url.trim() : null;
+  const url =
+    typeof primaryPhoto === 'string' ? primaryPhoto : (primaryPhoto?.imageUrl ?? primaryPhoto?.url);
+  return resolveMediaUrl(url);
 }
 
 /** Conserva la primera aparición y el orden recibido, sin modificar las listas originales. */

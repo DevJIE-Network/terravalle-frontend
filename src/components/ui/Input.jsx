@@ -34,12 +34,12 @@ export default function Input({ label, type = 'text', error, hint, id, className
         aria-invalid={Boolean(error)}
         aria-describedby={message ? messageId : undefined}
         className={cn(
-          'text-ink h-11 w-full rounded-lg border bg-white px-3 text-base transition-colors',
+          'text-ink h-12 w-full rounded-xl border bg-white px-4 text-base shadow-xs transition',
           'placeholder:text-stone-400 disabled:cursor-not-allowed disabled:bg-stone-100',
-          'focus:ring-2 focus:outline-none',
+          'focus:ring-4 focus:outline-none',
           error
-            ? 'border-red-500 focus:ring-red-200'
-            : 'focus:border-primary-500 focus:ring-primary-100 border-stone-300',
+            ? 'border-red-500 focus:ring-red-100'
+            : 'focus:border-primary-500 focus:ring-primary-100 border-stone-300 hover:border-stone-400',
         )}
         {...rest}
       />
