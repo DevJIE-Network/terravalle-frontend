@@ -8,6 +8,7 @@ import {
 } from 'react-router-dom';
 import { MainLayout } from '@/components/layout';
 import { AuthProvider } from '@/context/AuthProvider';
+import { FavoritesProvider } from '@/context/FavoritesProvider';
 import {
   CatalogPage,
   CreatePropertyPage,
@@ -35,7 +36,9 @@ import ProtectedRoute from './ProtectedRoute';
 function RootLayout() {
   return (
     <AuthProvider>
-      <Outlet />
+      <FavoritesProvider>
+        <Outlet />
+      </FavoritesProvider>
     </AuthProvider>
   );
 }

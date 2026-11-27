@@ -107,7 +107,7 @@ src/
 | `/mis-propiedades`                 | Protegida       | `MyPropertiesPage`       | HU-024 ✔ (y HU-020 a 025) |
 | `/mis-propiedades/:id/editar`      | Protegida       | `EditPropertyPage`       | HU-024 ✔                  |
 | `/mis-propiedades/:id/dimensiones` | Protegida       | `PropertyDimensionsPage` | HU-021 ✔                  |
-| `/favoritos`                       | Protegida       | `FavoritesPage`          | HU-030                    |
+| `/favoritos`                       | Protegida       | `FavoritesPage`          | HU-030 ✔                  |
 | `/perfil`                          | Protegida       | `ProfilePage`            | HU-019                    |
 | `/404` y `*`                       | Pública         | `NotFoundPage`           | HU-016 ✔                  |
 
@@ -136,6 +136,25 @@ src/
 - **Sin resultados:** se muestra "No se encontraron propiedades con estos filtros." con un botón para limpiar.
 - **Servicios:** las opciones salen del catálogo público de servicios (`GET /services`). Si no carga, el resto de filtros sigue funcionando.
 - **Ficha:** al abrir una propiedad desde una búsqueda, "Volver al catálogo" regresa a esa misma búsqueda.
+
+### Favoritos (HU-030)
+
+Los compradores con sesión guardan propiedades con un ícono de corazón y las consultan en `/favoritos` ("Mis favoritos"). Consume las operaciones de HU-014 (`GET /favorites`, `POST` y `DELETE /favorites/:propertyId`) desde `src/api/favorite.service.js`.
+
+| Pieza                                | Dónde                                       | Para qué                                                       |
+| ------------------------------------ | ------------------------------------------- | -------------------------------------------------------------- |
+| `FavoritesProvider` / `useFavorites` | `src/context/`, `src/hooks/useFavorites.js` | Una sola lista de favoritos compartida por toda la aplicación  |
+| `FavoriteButton`                     | `src/components/property/`                  | Ícono (`variant="icon"`, tarjetas) y botón (`"full"`, ficha)   |
+| `FavoritesPage`                      | `src/pages/Favorites/`                      | Lista, disponibilidad y deshacer                               |
+| `normalizeFavorite`                  | `src/utils/favorites.js`                    | Único lugar que lee los campos de GET /favorites y la política |
+
+- **Estado sincronizado:** catálogo, ficha y "Mis favoritos" leen la misma lista, así que el ícono se ve igual en las tres. La lista se pide la primera vez que una pantalla la necesita.
+- **Respuesta inmediata:** guardar y quitar actualizan la pantalla al instante; si el backend falla, el ícono regresa a su estado anterior y se muestra el error.
+- **Sin duplicados:** una propiedad ya guardada se muestra marcada y presionarla la quita; mientras una petición sigue en curso se ignoran clics repetidos.
+- **Visitantes:** el ícono es un enlace a "Iniciar sesión" y, al entrar, se regresa a la misma página. Sin conexión el ícono se desactiva.
+- **Quitar y deshacer:** "Quitar" solo elimina el favorito (nunca toca la publicación) y deja un aviso con "Deshacer" que se queda hasta cerrarlo o salir de la pantalla. Cada propiedad quitada tiene su aviso.
+- **Política de disponibilidad:** una propiedad que ya no está publicada (`inactive` o `withdrawn`) **no se borra de la lista**: se muestra atenuada, con la etiqueta "No disponible", sin enlace a la ficha, y se puede quitar. Si el elemento no informa su estado, se considera disponible. La regla vive en `favoriteAvailability()`; si HU-014 define otra, solo se cambia ahí.
+- **Sin `FavoritesProvider`** el ícono no se muestra, de modo que el catálogo sigue funcionando sin él (como en sus pruebas).
 
 ## ¿Dónde trabajo?
 

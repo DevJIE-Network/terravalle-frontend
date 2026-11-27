@@ -4,6 +4,7 @@ import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '@/api';
 import { AuthProvider } from '@/context/AuthProvider';
+import { FavoritesProvider } from '@/context/FavoritesProvider';
 import PublicPropertyPage from '@/pages/PublicProperty/PublicPropertyPage';
 import { ROUTES, STORAGE_KEYS } from '@/utils/constants';
 
@@ -90,7 +91,9 @@ function renderDetail({ id = '15', session = false, catalogSearch } = {}) {
       {
         element: (
           <AuthProvider>
-            <Outlet />
+            <FavoritesProvider>
+              <Outlet />
+            </FavoritesProvider>
           </AuthProvider>
         ),
         children: [
