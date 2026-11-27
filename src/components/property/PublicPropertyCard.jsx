@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Card } from '@/components/ui';
 import { buildPublicPropertyPath } from '@/utils/constants';
+import { cn } from '@/utils/helpers';
 import {
   formatMxnPrice,
   formatPropertyArea,
@@ -9,13 +10,20 @@ import {
   getPublicPropertyType,
   summarizePropertyLocation,
 } from '@/utils/publicProperties';
+import FavoriteButton from './FavoriteButton';
 
-function PropertyPhoto({ primaryPhoto, title }) {
+/** Foto principal con su reemplazo cuando no hay imagen o no carga. `dimmed` la apaga (no disponible). */
+export function PropertyPhoto({ primaryPhoto, title, dimmed = false }) {
   const url = getPublicPhotoUrl(primaryPhoto);
   const [failedUrl, setFailedUrl] = useState(null);
 
   return (
-    <div className="bg-surface-muted -mx-6 -mt-5 mb-5 aspect-[4/3] overflow-hidden">
+    <div
+      className={cn(
+        'bg-surface-muted -mx-6 -mt-5 mb-5 aspect-[4/3] overflow-hidden',
+        dimmed && 'opacity-60 grayscale',
+      )}
+    >
       {url && url !== failedUrl ? (
         <img
           src={url}
@@ -58,7 +66,7 @@ export default function PublicPropertyCard({ property }) {
   const { search } = useLocation();
 
   return (
-    <article aria-labelledby={headingId} className="h-full">
+    <article aria-labelledby={headingId} className="relative h-full">
       <Link
         to={buildPublicPropertyPath(property.id)}
         state={search ? { catalogSearch: search } : undefined}
@@ -98,6 +106,20 @@ export default function PublicPropertyCard({ property }) {
           </div>
         </Card>
       </Link>
+      {/* Hermano del enlace (no dentro de él): un control interactivo no se anida en otro. */}
+      <FavoriteButton
+        propertyId={property.id}
+        title={property.title}
+        snapshot={{
+          title: property.title,
+          propertyType: property.propertyType,
+          location: property.location,
+          publicationPrice: property.publicationPrice,
+          primaryPhoto: property.primaryPhoto,
+          status: 'active',
+        }}
+        className="absolute top-3 right-3 z-10"
+      />
     </article>
   );
 }

@@ -15,7 +15,8 @@ export default defineConfig({
       manifest: {
         name: 'TerraValle',
         short_name: 'TerraValle',
-        description: 'Bienes raíces en Puerto Vallarta: fichas técnicas de inmuebles y estimación de precio con IA',
+        description:
+          'Bienes raíces en Puerto Vallarta: fichas técnicas de inmuebles y estimación de precio con IA',
         lang: 'es-MX',
         start_url: '/',
         scope: '/',
@@ -38,12 +39,34 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webp}'],
+        // Recursos estáticos: precargados arriba. Datos de la API: no los guarda el Service Worker;
+        // la app pide cada ficha a la red y conserva su propia copia para usarla sin conexión.
+        // Fotos de propiedades: se reutilizan desde caché para que la galería funcione sin conexión.
+        runtimeCaching: [
+          {
+            urlPattern: ({ request, url }) =>
+              request.destination === 'image' &&
+              (url.pathname.startsWith('/uploads/') ||
+                url.hostname === 'picsum.photos' ||
+                url.hostname.endsWith('.picsum.photos') ||
+                url.hostname === 'fastly.picsum.photos'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'terravalle-fotos',
+              expiration: {
+                maxEntries: 120,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
+                purgeOnQuotaError: true,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
   ],
   resolve: {
     alias: {
-   
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },

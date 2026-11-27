@@ -3,8 +3,15 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { getPublicProperty } from '@/api';
 import { Isotype } from '@/components/brand';
 import { Button, ErrorState } from '@/components/ui';
+import { useOnlineStatus } from '@/hooks';
 import { ROUTES } from '@/utils/constants';
 import { formatDate, formatPrice } from '@/utils/helpers';
+import {
+  getOfflineProperty,
+  isNetworkError,
+  removeOfflineProperty,
+  saveOfflineProperty,
+} from '@/utils/offlineProperties';
 import { galleryPhotos, isUnavailableError } from '@/utils/propertyDetail';
 import { getPublicPropertyType, summarizePropertyLocation } from '@/utils/publicProperties';
 import PropertyActions from './PropertyActions';
@@ -98,6 +105,78 @@ function UnavailableNotice({ gone }) {
   );
 }
 
+const savedAtFormatter = new Intl.DateTimeFormat('es-MX', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
+/**
+ * Pide la ficha a la red y guarda una copia local. Sin conexión usa esa copia, si existe.
+ * @returns {Promise<{ property: object, notes: object, source: 'network'|'offline', savedAt?: number }>}
+ */
+async function loadProperty(id) {
+  try {
+    const data = await getPublicProperty(id);
+    saveOfflineProperty(data.property, data.notes);
+    return { ...data, source: 'network' };
+  } catch (error) {
+    if (isUnavailableError(error)) removeOfflineProperty(id);
+    if (!isNetworkError(error)) throw error;
+    const saved = getOfflineProperty(id);
+    if (!saved) throw Object.assign(error, { offlineMiss: true });
+    return {
+      property: saved.property,
+      notes: saved.notes ?? {},
+      source: 'offline',
+      savedAt: saved.savedAt,
+    };
+  }
+}
+
+/** Aviso de que la ficha viene de la copia guardada y puede no estar actualizada. */
+function OfflineCopyNotice({ savedAt, online, onRefresh }) {
+  return (
+    <div
+      role="status"
+      className="border-earth-300 bg-earth-50 text-earth-900 flex flex-col gap-3 rounded-2xl border px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div>
+        <p className="font-display font-semibold">Estás viendo una copia guardada sin conexión</p>
+        <p className="text-sm">
+          Guardada el {savedAtFormatter.format(savedAt)} · Precio, disponibilidad y demás datos
+          pueden no estar actualizados.
+        </p>
+      </div>
+      <Button variant="secondary" size="sm" onClick={onRefresh} disabled={!online}>
+        {online ? 'Actualizar ahora' : 'Sin conexión'}
+      </Button>
+    </div>
+  );
+}
+
+/** La propiedad nunca se abrió en este dispositivo y no hay conexión para pedirla. */
+function OfflineMissNotice({ onRetry }) {
+  const catalogHref = useCatalogHref();
+  return (
+    <section className="mx-auto flex max-w-xl flex-col items-center rounded-3xl border border-stone-200 bg-white px-6 py-14 text-center shadow-sm">
+      <Isotype className="h-14 w-auto opacity-70" />
+      <h1 className="text-ink mt-6 text-2xl sm:text-3xl">Esta propiedad requiere conexión</h1>
+      <p className="text-ink-muted mt-3">
+        No la has abierto antes en este dispositivo, así que no hay una copia guardada. Conéctate a
+        Internet para consultarla.
+      </p>
+      <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <Button onClick={onRetry} size="lg">
+          Reintentar
+        </Button>
+        <Button to={catalogHref} variant="secondary" size="lg">
+          Volver al catálogo
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 /**
  * Ficha pública de una propiedad: galería, precio, características, servicios, ubicación
  * con mapa y entorno. Se puede abrir con un enlace directo y sin iniciar sesión.
@@ -107,10 +186,12 @@ export default function PublicPropertyPage() {
   const catalogHref = useCatalogHref();
   const [state, setState] = useState({ status: 'loading', data: null, error: null });
   const [attempt, setAttempt] = useState(0);
+  const online = useOnlineStatus();
+  const showingOfflineCopy = state.data?.source === 'offline';
 
   useEffect(() => {
     let active = true;
-    getPublicProperty(id)
+    loadProperty(id)
       .then((data) => active && setState({ status: 'ready', data, error: null }))
       .catch((error) => active && setState({ status: 'error', data: null, error }));
     return () => {
@@ -118,19 +199,30 @@ export default function PublicPropertyPage() {
     };
   }, [id, attempt]);
 
+  // Al recuperar la conexión, una copia guardada se reemplaza por la versión vigente.
+  useEffect(() => {
+    if (!showingOfflineCopy) return undefined;
+    const refresh = () => setAttempt((value) => value + 1);
+    window.addEventListener('online', refresh);
+    return () => window.removeEventListener('online', refresh);
+  }, [showingOfflineCopy]);
+
+  const retry = () => {
+    setState({ status: 'loading', data: null, error: null });
+    setAttempt((value) => value + 1);
+  };
+
   if (state.status === 'loading') return <DetailSkeleton />;
 
   if (state.status === 'error') {
     if (isUnavailableError(state.error))
       return <UnavailableNotice gone={state.error.status === 410} />;
+    if (state.error.offlineMiss) return <OfflineMissNotice onRetry={retry} />;
     return (
       <ErrorState
         title="No pudimos cargar la propiedad"
         message={state.error.message}
-        onRetry={() => {
-          setState({ status: 'loading', data: null, error: null });
-          setAttempt((value) => value + 1);
-        }}
+        onRetry={retry}
       />
     );
   }
@@ -140,6 +232,13 @@ export default function PublicPropertyPage() {
 
   return (
     <article className="flex flex-col gap-8">
+      {showingOfflineCopy && (
+        <OfflineCopyNotice
+          savedAt={state.data.savedAt}
+          online={online}
+          onRefresh={() => setAttempt((value) => value + 1)}
+        />
+      )}
       <header className="flex flex-col gap-3">
         <Link
           to={catalogHref}
@@ -170,12 +269,12 @@ export default function PublicPropertyPage() {
 
           <FeaturesSection property={property} />
           <ServicesSection services={property.services} />
-          <LocationSection property={property} distanceNote={notes.nearbyPlaces} />
+          <LocationSection property={property} distanceNote={notes.nearbyPlaces} showMap={online} />
         </div>
 
         <aside className="flex flex-col gap-5 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm lg:sticky lg:top-24">
           <PriceCard property={property} notes={notes} />
-          <PropertyActions propertyId={property.id} title={property.title} />
+          <PropertyActions property={property} online={online} />
           {property.publishedAt && (
             <p className="text-ink-muted border-t border-stone-100 pt-4 text-xs">
               Publicada el {formatDate(property.publishedAt)}
