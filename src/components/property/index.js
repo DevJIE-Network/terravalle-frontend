@@ -1,3 +1,4 @@
+export { default as ContactSeller } from './ContactSeller';
 export { default as FavoriteButton } from './FavoriteButton';
 export { default as HeartIcon } from './HeartIcon';
 export { default as PhotoUploader } from './PhotoUploader';

@@ -112,7 +112,7 @@ describe('consulta sin conexión de fichas ya abiertas', () => {
     expect(screen.getByText(/Sin conexión\./)).toBeInTheDocument();
     expect(screen.queryByText('No pudimos cargar la propiedad')).not.toBeInTheDocument();
 
-    expect(screen.getByRole('button', { name: 'Contactar al vendedor' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Contactar vendedor' })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Guardar en favoritos/ })).toBeDisabled();
     expect(screen.getByText('El mapa requiere conexión a Internet.')).toBeInTheDocument();
     expect(screen.queryByTitle(/Mapa de la ubicación/)).not.toBeInTheDocument();

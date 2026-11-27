@@ -223,7 +223,7 @@ describe('Ficha pública de una propiedad', () => {
     api.getPropertyContact.mockResolvedValue({ type: 'whatsapp', value: '3221234567' });
     renderDetail();
 
-    await user.click(await screen.findByRole('button', { name: 'Contactar al vendedor' }));
+    await user.click(await screen.findByRole('button', { name: 'Contactar vendedor' }));
     const link = await screen.findByRole('link', { name: '3221234567' });
     expect(link.getAttribute('href')).toContain('wa.me/523221234567');
     expect(api.getPropertyContact).toHaveBeenCalledWith('15');
@@ -235,9 +235,33 @@ describe('Ficha pública de una propiedad', () => {
     api.getPropertyContact.mockRejectedValue(unavailable(404));
     renderDetail();
 
-    await user.click(await screen.findByRole('button', { name: 'Contactar al vendedor' }));
+    await user.click(await screen.findByRole('button', { name: 'Contactar vendedor' }));
     expect(await screen.findByText(/no tiene un medio de contacto/)).toBeInTheDocument();
   });
+
+  it.each(['inactive', 'withdrawn'])(
+    'con estado %s no ofrece contacto, no consulta HU-013 y la ficha sigue funcionando',
+    async (status) => {
+      api.getPublicProperty.mockResolvedValue({
+        property: buildProperty({ status }),
+        notes: {},
+      });
+      renderDetail();
+
+      expect(
+        await screen.findByText(
+          'El contacto con el vendedor no está disponible para esta propiedad.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Contactar vendedor' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /tel:|mailto:/ })).not.toBeInTheDocument();
+      expect(api.getPropertyContact).not.toHaveBeenCalled();
+      expect(
+        await screen.findByRole('heading', { level: 1, name: /Casa con alberca/ }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Descripción' })).toBeInTheDocument();
+    },
+  );
 
   it('sin sesión invita a iniciar sesión para guardar', async () => {
     api.getPublicProperty.mockResolvedValue({ property: buildProperty(), notes: {} });
