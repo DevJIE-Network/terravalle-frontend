@@ -274,7 +274,7 @@ export default function PublicPropertyPage() {
 
         <aside className="flex flex-col gap-5 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm lg:sticky lg:top-24">
           <PriceCard property={property} notes={notes} />
-          <PropertyActions propertyId={property.id} title={property.title} online={online} />
+          <PropertyActions property={property} online={online} />
           {property.publishedAt && (
             <p className="text-ink-muted border-t border-stone-100 pt-4 text-xs">
               Publicada el {formatDate(property.publishedAt)}
