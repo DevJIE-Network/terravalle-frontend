@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { getPublicProperties, getPublicServiceCatalog } from '@/api';
 import { PropertyCardSkeleton, PublicPropertyCard } from '@/components/property';
 import { Button, EmptyState, ErrorState, PageHeader } from '@/components/ui';
+import { useOnlineStatus } from '@/hooks';
 import {
   describeActiveFilters,
   removeFilter,
@@ -13,6 +14,7 @@ import {
 import { appendUniqueProperties, PUBLIC_PROPERTIES_PAGE_SIZE } from '@/utils/publicProperties';
 import ActiveFilters from './ActiveFilters';
 import CatalogFilters from './CatalogFilters';
+import OfflineSavedList from './OfflineSavedList';
 
 const GRID_CLASSES = 'grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3';
 
@@ -24,6 +26,7 @@ const GRID_CLASSES = 'grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3';
 export default function CatalogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchString = searchParams.toString();
+  const online = useOnlineStatus();
 
   // Criterios de la URL ya validados. Con errores (URL editada a mano) no se envía la consulta.
   const criteria = useMemo(() => {
@@ -105,6 +108,13 @@ export default function CatalogPage() {
     setLoadError('');
     setLoadAttempt((attempt) => attempt + 1);
   }
+  // Si la carga falló por falta de conexión, se reintenta sola al recuperarla.
+  useEffect(() => {
+    if (status !== 'error' && status !== 'moreError') return undefined;
+    const reload = () => retry();
+    window.addEventListener('online', reload);
+    return () => window.removeEventListener('online', reload);
+  });
 
   function applyFilters(filters) {
     setSearchParams(toSearchParams(filters));
@@ -151,8 +161,18 @@ export default function CatalogPage() {
       )}
 
       {status === 'error' && (
-        <ErrorState title="No pudimos cargar el catálogo" message={loadError} onRetry={retry} />
+        <ErrorState
+          title={online ? 'No pudimos cargar el catálogo' : 'El catálogo requiere conexión'}
+          message={
+            online
+              ? loadError
+              : 'Conéctate a Internet para ver las propiedades publicadas. Mientras tanto puedes abrir las fichas que ya consultaste.'
+          }
+          onRetry={retry}
+        />
       )}
+
+      {status === 'error' && !online && <OfflineSavedList />}
 
       {status === 'ready' && !hasProperties && hasFilters && (
         <EmptyState
