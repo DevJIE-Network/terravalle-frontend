@@ -97,7 +97,7 @@ export function ServicesSection({ services }) {
 }
 
 /** Ubicación con mapa y entorno con distancias aproximadas. */
-export function LocationSection({ property, distanceNote }) {
+export function LocationSection({ property, distanceNote, showMap = true }) {
   const lines = addressLines(property.location);
   const withMap = hasCoordinates(property.location);
   const groups = groupNearbyPlaces(property.nearbyPlaces);
@@ -119,7 +119,13 @@ export function LocationSection({ property, distanceNote }) {
           </address>
         )}
 
-        {withMap && (
+        {withMap && !showMap && (
+          <p className="bg-surface text-ink-muted rounded-2xl border border-dashed border-stone-300 px-4 py-6 text-center text-sm">
+            El mapa requiere conexión a Internet.
+          </p>
+        )}
+
+        {withMap && showMap && (
           <div className="overflow-hidden rounded-2xl border border-stone-200">
             <iframe
               title={`Mapa de la ubicación de ${property.title}`}
