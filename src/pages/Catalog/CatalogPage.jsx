@@ -108,6 +108,13 @@ export default function CatalogPage() {
     setLoadError('');
     setLoadAttempt((attempt) => attempt + 1);
   }
+  // Si la carga falló por falta de conexión, se reintenta sola al recuperarla.
+  useEffect(() => {
+    if (status !== 'error' && status !== 'moreError') return undefined;
+    const reload = () => retry();
+    window.addEventListener('online', reload);
+    return () => window.removeEventListener('online', reload);
+  });
 
   function applyFilters(filters) {
     setSearchParams(toSearchParams(filters));

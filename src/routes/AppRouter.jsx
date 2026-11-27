@@ -31,6 +31,7 @@ import { ROUTES } from '@/utils/constants';
 
 import GuestRoute from './GuestRoute';
 import ProtectedRoute from './ProtectedRoute';
+import RequiresConnection from './RequiresConnection';
 
 /** Proveedores que necesitan el router (AuthProvider usa useNavigate). */
 function RootLayout() {
@@ -68,30 +69,34 @@ const router = createBrowserRouter(
 
         {/* Solo visitantes */}
         <Route element={<GuestRoute />}>
-          <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+          <Route element={<RequiresConnection />}>
+            <Route path={ROUTES.LOGIN} element={<LoginPage />} />
 
-          <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+            <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+          </Route>
         </Route>
 
         {/* Protegidas */}
         <Route element={<ProtectedRoute />}>
-          <Route path={ROUTES.MY_PROPERTIES} element={<MyPropertiesPage />} />
+          <Route element={<RequiresConnection />}>
+            <Route path={ROUTES.MY_PROPERTIES} element={<MyPropertiesPage />} />
 
-          <Route path={ROUTES.CREATE_PROPERTY} element={<CreatePropertyPage />} />
+            <Route path={ROUTES.CREATE_PROPERTY} element={<CreatePropertyPage />} />
 
-          <Route path={ROUTES.PROPERTY_EDIT} element={<EditPropertyPage />} />
+            <Route path={ROUTES.PROPERTY_EDIT} element={<EditPropertyPage />} />
 
-          <Route path={ROUTES.PROPERTY_DIMENSIONS} element={<PropertyDimensionsPage />} />
+            <Route path={ROUTES.PROPERTY_DIMENSIONS} element={<PropertyDimensionsPage />} />
 
-          <Route path={ROUTES.PROPERTY_SERVICES} element={<PropertyServicesPage />} />
+            <Route path={ROUTES.PROPERTY_SERVICES} element={<PropertyServicesPage />} />
 
-          <Route path={ROUTES.PROPERTY_LOCATION} element={<PropertyLocationPage />} />
+            <Route path={ROUTES.PROPERTY_LOCATION} element={<PropertyLocationPage />} />
 
-          <Route path={ROUTES.PROPERTY_ESTIMATION} element={<PropertyEstimationPage />} />
+            <Route path={ROUTES.PROPERTY_ESTIMATION} element={<PropertyEstimationPage />} />
 
-          <Route path={ROUTES.FAVORITES} element={<FavoritesPage />} />
+            <Route path={ROUTES.FAVORITES} element={<FavoritesPage />} />
 
-          <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
+            <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
+          </Route>
         </Route>
 
         {/* No encontrada */}
